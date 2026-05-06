@@ -372,14 +372,14 @@ workflow:
       
   - name: Extract date attributes 
     id: extract_date
-    task: decompose_datetime
+    task: extract_dt_attributes
     partial: 
       df: ${{ workflow.convert_col_int.return }}
-      datetime_column: "Date and time of raid"
-      components: ["month","month_name","hour"]
-      column_prefix: "ts"
-      remove_source: false
-
+      time_column: "Date and time of raid"
+      attributes: ["month","month_name","hour"]
+      column_prefix: "ts_"
+      tz: null 
+      
   - name: Assign custom time bins 
     id: assign_custom_bins 
     task: assign_time_bins 
@@ -1095,11 +1095,10 @@ workflow:
   
   - name: Convert ts_month_name to string 
     id: convert_month_str 
-    task: convert_to_string 
+    task: convert_column_values_to_string 
     partial: 
       df: ${{ workflow.ordered_ele_acre.return }}
       columns: ["ts_month_name"]
-      inplace: true
 
   - name: Persist elephant acres table as parquet 
     id: persist_ele_acre_df 
@@ -1143,19 +1142,20 @@ workflow:
           "December"
       ]
   
-  - name: convert overall ele to int 
-    id: convert_ele_int 
-    task: convert_numeric_to_int 
-    partial: 
-      df: ${{ workflow.order_overall_ele.return }}
+  # - name: convert overall ele to int 
+  #   id: convert_ele_int 
+  #   task: convert_column_values_to_numeric
+  #   partial: 
+  #     df: ${{ workflow.order_overall_ele.return }}
+  #     columns: ["Damage size"]
 
   - name: Convert overall ele month name to string 
     id: convert_ele_month_str
-    task: convert_to_string 
+    task: convert_column_values_to_string 
     partial: 
-      df: ${{ workflow.convert_ele_int.return }}
+      df: ${{ workflow.order_overall_ele.return }} 
+      #${{ workflow.convert_ele_int.return }}
       columns: ["ts_month_name"]
-      inplace: true
 
   - name: Persist overall ele as geoparquet 
     id: persist_overall_ele
@@ -1204,7 +1204,7 @@ workflow:
 
   - name: Convert ranger response to string 
     id: convert_ranger_str
-    task: convert_to_string 
+    task: convert_column_values_to_string 
     partial: 
       df: ${{ workflow.add_ranger_pct.return }}
       columns: [
@@ -1214,7 +1214,6 @@ workflow:
         "Outside AOO",
         "Total Incidents"
         ]
-      inplace: true
   
   - name: Persist ranger response as geoparquet
     id: persist_ranger_df 
@@ -1263,7 +1262,7 @@ workflow:
   
   - name: Convert total acres damaged to string 
     id: convert_total_acres_str
-    task: convert_to_string
+    task: convert_column_values_to_string
     partial: 
       df: ${{ workflow.add_total_acres_pct.return }}
       columns: [
@@ -1273,7 +1272,7 @@ workflow:
         "Outside AOO",
         "Total Acres Damaged"
         ]
-      inplace: true
+
   
   - name: Persist total acres df as parquet
     id: persist_total_df 
@@ -1472,11 +1471,10 @@ workflow:
 
   - name: Convert bins to str 
     id: convert_bins_str
-    task: convert_to_string
+    task: convert_column_values_to_string
     partial:
       df: ${{ workflow.assign_density_bins.return }}
       columns: ["density_bins"]
-      inplace: true
 
   - name: Apply colormap to density bins
     id: apply_density_colormap

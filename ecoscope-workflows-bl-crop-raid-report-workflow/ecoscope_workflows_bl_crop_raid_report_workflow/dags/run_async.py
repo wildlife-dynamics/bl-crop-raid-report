@@ -16,6 +16,9 @@ from ecoscope_workflows_core.tasks.skip import (
     any_dependency_skipped as any_dependency_skipped,
 )
 from ecoscope_workflows_core.tasks.skip import any_is_empty_df as any_is_empty_df
+from ecoscope_workflows_core.tasks.transformation import (
+    convert_column_values_to_string as convert_column_values_to_string,
+)
 from ecoscope_workflows_core.tasks.transformation import map_columns as map_columns
 from ecoscope_workflows_core.tasks.transformation import sort_values as sort_values
 from ecoscope_workflows_ext_ate.tasks import draw_boxplot as draw_boxplot
@@ -26,17 +29,16 @@ from ecoscope_workflows_ext_big_life.tasks import (
 from ecoscope_workflows_ext_big_life.tasks import aggregate_by as aggregate_by
 from ecoscope_workflows_ext_big_life.tasks import assign_time_bins as assign_time_bins
 from ecoscope_workflows_ext_big_life.tasks import bin_column as bin_column
-from ecoscope_workflows_ext_big_life.tasks import (
-    convert_numeric_to_int as convert_numeric_to_int,
-)
 from ecoscope_workflows_ext_big_life.tasks import convert_to_float as convert_to_float
-from ecoscope_workflows_ext_big_life.tasks import convert_to_string as convert_to_string
 from ecoscope_workflows_ext_big_life.tasks import crosstab_summary as crosstab_summary
 from ecoscope_workflows_ext_big_life.tasks import (
     draw_custom_bar_chart as draw_custom_bar_chart,
 )
 from ecoscope_workflows_ext_big_life.tasks import (
     draw_custom_stacked_bar_chart as draw_custom_stacked_bar_chart,
+)
+from ecoscope_workflows_ext_big_life.tasks import (
+    extract_dt_attributes as extract_dt_attributes,
 )
 from ecoscope_workflows_ext_big_life.tasks import filter_color_map as filter_color_map
 from ecoscope_workflows_ext_big_life.tasks import (
@@ -71,9 +73,6 @@ from ecoscope_workflows_ext_custom.tasks.results import (
 )
 from ecoscope_workflows_ext_custom.tasks.spatial_ops import (
     reproject_gdf as reproject_gdf,
-)
-from ecoscope_workflows_ext_custom.tasks.transformation import (
-    decompose_datetime as decompose_datetime,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     drop_column_prefix as drop_column_prefix,
@@ -202,8 +201,7 @@ def main(params: Params):
         "persist_ele_acre_df": ["convert_month_str"],
         "aggregate_overall_ele": ["elephant_acres"],
         "order_overall_ele": ["aggregate_overall_ele"],
-        "convert_ele_int": ["order_overall_ele"],
-        "convert_ele_month_str": ["convert_ele_int"],
+        "convert_ele_month_str": ["order_overall_ele"],
         "persist_overall_ele": ["convert_ele_month_str"],
         "ranger_response": ["assign_custom_bins"],
         "order_ranger_response": ["ranger_response"],
@@ -1048,7 +1046,7 @@ def main(params: Params):
             method="call",
         ),
         "extract_date": Node(
-            async_task=decompose_datetime.validate()
+            async_task=extract_dt_attributes.validate()
             .set_task_instance_id("extract_date")
             .handle_errors()
             .with_tracing()
@@ -1062,14 +1060,14 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_col_int"),
-                "datetime_column": "Date and time of raid",
-                "components": [
+                "time_column": "Date and time of raid",
+                "attributes": [
                     "month",
                     "month_name",
                     "hour",
                 ],
-                "column_prefix": "ts",
-                "remove_source": False,
+                "column_prefix": "ts_",
+                "tz": None,
             }
             | (params_dict.get("extract_date") or {}),
             method="call",
@@ -2380,7 +2378,7 @@ def main(params: Params):
             method="call",
         ),
         "convert_month_str": Node(
-            async_task=convert_to_string.validate()
+            async_task=convert_column_values_to_string.validate()
             .set_task_instance_id("convert_month_str")
             .handle_errors()
             .with_tracing()
@@ -2397,7 +2395,6 @@ def main(params: Params):
                 "columns": [
                     "ts_month_name",
                 ],
-                "inplace": True,
             }
             | (params_dict.get("convert_month_str") or {}),
             method="call",
@@ -2483,27 +2480,8 @@ def main(params: Params):
             | (params_dict.get("order_overall_ele") or {}),
             method="call",
         ),
-        "convert_ele_int": Node(
-            async_task=convert_numeric_to_int.validate()
-            .set_task_instance_id("convert_ele_int")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("order_overall_ele"),
-            }
-            | (params_dict.get("convert_ele_int") or {}),
-            method="call",
-        ),
         "convert_ele_month_str": Node(
-            async_task=convert_to_string.validate()
+            async_task=convert_column_values_to_string.validate()
             .set_task_instance_id("convert_ele_month_str")
             .handle_errors()
             .with_tracing()
@@ -2516,11 +2494,10 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("convert_ele_int"),
+                "df": DependsOn("order_overall_ele"),
                 "columns": [
                     "ts_month_name",
                 ],
-                "inplace": True,
             }
             | (params_dict.get("convert_ele_month_str") or {}),
             method="call",
@@ -2624,7 +2601,7 @@ def main(params: Params):
             method="call",
         ),
         "convert_ranger_str": Node(
-            async_task=convert_to_string.validate()
+            async_task=convert_column_values_to_string.validate()
             .set_task_instance_id("convert_ranger_str")
             .handle_errors()
             .with_tracing()
@@ -2645,7 +2622,6 @@ def main(params: Params):
                     "Outside AOO",
                     "Total Incidents",
                 ],
-                "inplace": True,
             }
             | (params_dict.get("convert_ranger_str") or {}),
             method="call",
@@ -2749,7 +2725,7 @@ def main(params: Params):
             method="call",
         ),
         "convert_total_acres_str": Node(
-            async_task=convert_to_string.validate()
+            async_task=convert_column_values_to_string.validate()
             .set_task_instance_id("convert_total_acres_str")
             .handle_errors()
             .with_tracing()
@@ -2770,7 +2746,6 @@ def main(params: Params):
                     "Outside AOO",
                     "Total Acres Damaged",
                 ],
-                "inplace": True,
             }
             | (params_dict.get("convert_total_acres_str") or {}),
             method="call",
@@ -3187,7 +3162,7 @@ def main(params: Params):
             method="call",
         ),
         "convert_bins_str": Node(
-            async_task=convert_to_string.validate()
+            async_task=convert_column_values_to_string.validate()
             .set_task_instance_id("convert_bins_str")
             .handle_errors()
             .with_tracing()
@@ -3204,7 +3179,6 @@ def main(params: Params):
                 "columns": [
                     "density_bins",
                 ],
-                "inplace": True,
             }
             | (params_dict.get("convert_bins_str") or {}),
             method="call",
