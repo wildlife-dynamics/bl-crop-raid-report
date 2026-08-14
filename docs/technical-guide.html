@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Technical Guide — BL Crop Raid Report</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="bar">
+      <a class="brand" href="index.html">BL Crop Raid Report</a>
+      <nav>
+        <a href="index.html">Overview</a>
+        <a href="user-guide.html">User Guide</a>
+        <a href="technical-guide.html" class="active">Technical Guide</a>
+        <a href="troubleshooting.html">Troubleshooting</a>
+        <a href="https://github.com/wildlife-dynamics/bl_crop_raid_report">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>Technical Guide</h1>
+    <p class="lede">A deeper look at how the BL Crop Raid Report workflow is built: the event pipeline, every chart, map, and table, and Word report and dashboard generation.</p>
+
+    <p>
+      <a href="assets/bl_crop_raid_report_technical_guide.pdf">Download the full Technical Guide (PDF)</a>
+      <span class="badge">v2.0</span>
+    </p>
+    <p>Version 2.0 rewrites the guide against the current <code>spec.yaml</code> (id <code>crop_raid_report</code>). It corrects the dependency list (migrated to <code>ecoscope-platform</code> plus the Big Life, WWF-Virunga, STE, MNC, and custom extension packages actually declared), the real task names (several in the previous version matched nothing in <code>spec.yaml</code>), the Word report's fixed <code>"Ecoscope"</code> author field and <code>overall_report.docx</code> filename, and the dashboard, which wires up 17 widgets. It also documents two quirks found in the current spec: the &ldquo;French beans&rdquo; colour value not appearing in the top-crops chart's stack order, and the &ldquo;Acres&rdquo;-labelled damage chart not actually being filtered to acre-measured events.</p>
+
+    <h2>Contents</h2>
+    <ol>
+      <li>Overview</li>
+      <li>Dependencies &amp; Prerequisites
+        <ol type="a">
+          <li>Python packages</li>
+          <li>EarthRanger connection</li>
+          <li>Static geospatial layers</li>
+          <li>Base map tile layers</li>
+          <li>Land-use and boundary layer styles</li>
+          <li>Grouping strategy</li>
+        </ol>
+      </li>
+      <li>Event Data Pipeline
+        <ol type="a">
+          <li>Event fetch</li>
+          <li>Event details processing</li>
+          <li>JSON normalisation and prefix removal</li>
+          <li>Column selection and type conversion</li>
+          <li>Temporal attribute extraction</li>
+          <li>Time bin assignment</li>
+        </ol>
+      </li>
+      <li>Chart Outputs</li>
+      <li>Map Outputs</li>
+      <li>Summary Tables</li>
+      <li>Word Report &amp; Dashboard</li>
+      <li>Output Files</li>
+      <li>Workflow Execution Logic
+        <ol type="a">
+          <li>Skip conditions</li>
+          <li>mapvalues fan-out (per-month crop maps)</li>
+          <li>Screenshot timing</li>
+          <li>Core AOO analysis scope</li>
+        </ol>
+      </li>
+      <li>Software Versions</li>
+    </ol>
+
+    <h2>Read it here</h2>
+    <p>The guide is embedded below. If it doesn't render in your browser, use the download link above.</p>
+    <embed src="assets/bl_crop_raid_report_technical_guide.pdf" type="application/pdf" width="100%" height="900px" style="border: 1px solid #d8e8d8; border-radius: 6px;" />
+  </main>
+
+  <footer class="site-footer">
+    <p>BL Crop Raid Report &middot; <a href="https://github.com/wildlife-dynamics/bl_crop_raid_report">wildlife-dynamics/bl_crop_raid_report</a> on GitHub</p>
+  </footer>
+</body>
+</html>

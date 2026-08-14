@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BL Crop Raid Report</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="bar">
+      <a class="brand" href="index.html">BL Crop Raid Report</a>
+      <nav>
+        <a href="index.html" class="active">Overview</a>
+        <a href="user-guide.html">User Guide</a>
+        <a href="technical-guide.html">Technical Guide</a>
+        <a href="troubleshooting.html">Troubleshooting</a>
+        <a href="https://github.com/wildlife-dynamics/bl_crop_raid_report">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>BL Crop Raid Report</h1>
+    <p class="lede">Ingests human-wildlife conflict crop raid events from EarthRanger and produces a comprehensive incident analysis report and dashboard for the Amboseli ecosystem.</p>
+
+    <div class="card-grid">
+      <a class="card" href="user-guide.html">
+        <h3>User Guide</h3>
+        <p>Step-by-step instructions for loading, configuring, and running the workflow.</p>
+      </a>
+      <a class="card" href="technical-guide.html">
+        <h3>Technical Guide</h3>
+        <p>Deeper look at the workflow's internals — the event pipeline, every chart, map, and table, and Word report generation.</p>
+      </a>
+      <a class="card" href="troubleshooting.html">
+        <h3>Troubleshooting</h3>
+        <p>Common errors you may hit while configuring or running the workflow, and how to resolve them.</p>
+      </a>
+    </div>
+
+    <h2>What it produces</h2>
+    <ul>
+      <li><strong>Charts</strong> &mdash; time-of-day incident distribution, damage size boxplot by ranger response timing, monthly incidents by crop raid location, crop species pie charts (by count and by area), and monthly incidents/damage stacked bars</li>
+      <li><strong>Maps</strong> &mdash; a crop raid density grid, a timing-of-ranger-response scatter map, a species-responsible scatter map, and a per-month crop-destroyed scatter map</li>
+      <li><strong>Summary tables</strong> &mdash; elephant damage by month, mean elephant group size, ranger response timing with percentages, total acres damaged, species damage, and crop damage (6 GeoParquet tables)</li>
+      <li><strong>A Word document report</strong> (<code>overall_report.docx</code>) &mdash; every chart, map, and table assembled into the Big Life crop raid report template</li>
+      <li><strong>An interactive dashboard</strong> &mdash; 17 widgets covering every chart, map, and table produced by the run</li>
+    </ul>
+
+    <h2>Requirements</h2>
+    <ul>
+      <li>Access to an <strong>EarthRanger</strong> instance with <code>hwc_crop_raids</code> events logged for the analysis period</li>
+    </ul>
+    <p>The Amboseli geospatial layers and the Word report template are downloaded automatically from Dropbox at run time &mdash; no additional setup is required for these.</p>
+
+    <h2>Get started</h2>
+    <p>New to the workflow? Start with the <a href="user-guide.html">User Guide</a> for a walkthrough of loading the template, connecting EarthRanger, and running it. Running into an error? Check <a href="troubleshooting.html">Troubleshooting</a> first.</p>
+  </main>
+
+  <footer class="site-footer">
+    <p>BL Crop Raid Report &middot; <a href="https://github.com/wildlife-dynamics/bl_crop_raid_report">wildlife-dynamics/bl_crop_raid_report</a> on GitHub</p>
+  </footer>
+</body>
+</html>

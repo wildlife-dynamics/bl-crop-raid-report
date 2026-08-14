@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Troubleshooting — BL Crop Raid Report</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="bar">
+      <a class="brand" href="index.html">BL Crop Raid Report</a>
+      <nav>
+        <a href="index.html">Overview</a>
+        <a href="user-guide.html">User Guide</a>
+        <a href="technical-guide.html">Technical Guide</a>
+        <a href="troubleshooting.html" class="active">Troubleshooting</a>
+        <a href="https://github.com/wildlife-dynamics/bl_crop_raid_report">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>Troubleshooting</h1>
+    <p class="lede">Common issues encountered while configuring, running, or contributing to the BL Crop Raid Report workflow, and how to resolve them. If your issue isn't listed here, open an issue on <a href="https://github.com/wildlife-dynamics/bl_crop_raid_report/issues">GitHub</a>.</p>
+
+    <h2>Configuration &amp; Connections</h2>
+
+    <div class="error-block">
+      <p class="symptom">Workflow errors out with no events found</p>
+      <p>The event fetch sets <code>raise_on_empty: true</code>, so if EarthRanger has zero <code>hwc_crop_raids</code> events for your selected time range, the workflow raises an explicit error rather than completing with empty outputs. Widen the time range or confirm the events exist under that event type in EarthRanger.</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom">EarthRanger connection fails or times out</p>
+      <p>Verify the server URL, username, and password configured in the <a href="user-guide.html#connection">EarthRanger Connection</a>. Confirm you can log into that same EarthRanger instance directly in a browser with the same credentials. Credentials aren't validated at setup time, so an invalid password only surfaces as an error once the workflow actually runs.</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom">Amboseli geospatial layers or the Word template fail to download</p>
+      <p>The three Amboseli GeoPackages and the Word report template are fetched from fixed Dropbox share links in <code>spec.yaml</code>. These links carry an expiring share token (<code>st=</code> parameter); if a link has been rotated or revoked on Dropbox's side, <code>fetch_and_persist_file</code> will exhaust its 3 retries and fail. This isn't a workflow configuration issue &mdash; the URLs in <code>spec.yaml</code> would need to be refreshed.</p>
+    </div>
+
+    <h2>Charts &amp; Tables</h2>
+
+    <div class="error-block">
+      <p class="symptom">"French beans" incidents show up under "Other" in the top-crops charts</p>
+      <p>This is expected given the current <code>spec.yaml</code>: the <code>total_incidents_recorded</code> and <code>total_damage_recorded</code> charts group crops into Beans, Maize, Onion, Tomatoes, Watermelon, and Other. French beans has its own colour defined elsewhere in the workflow's colour map, but the grouping step for these two charts folds it into "Other" rather than giving it its own bucket &mdash; see the Technical Guide, &sect;4.6.</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom"><code>total_damage_recorded</code>'s "Acres" totals look inflated or inconsistent with the damage boxplot</p>
+      <p>Unlike the damage boxplot and the crop-damage pie chart, <code>total_damage_recorded</code> is not filtered to <code>Measurement unit == "Acre"</code> in the current <code>spec.yaml</code> &mdash; a <code>filter_acre_aoo</code> task exists for this purpose but its output is never used downstream. If your EarthRanger data records some crop-raid damage in non-acre units (e.g. plots, rows), those values are included in this chart despite its "Acres" axis label. Treat the chart as indicative rather than a strict acreage total until the spec is updated to use the filtered dataframe.</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom">Crop species pie charts (§4.4/§4.5) look empty or very sparse</p>
+      <p>Both pie charts are restricted to <strong>Core AOO</strong> events where <strong>Damage caused = "Yes"</strong>. If most of your period's incidents were logged outside the Core AOO, or without a confirmed "Damage caused" value, these two charts will have little or no data even though the raw event count is high. This is expected scoping, not a bug &mdash; the monthly location chart (§4.3) and the summary tables use the full dataset for comparison.</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom">Elephant summary tables don't match a manual Core-AOO-only count</p>
+      <p>The two elephant tables (<code>total_land_size_damaged_by_elephants</code>, <code>average_elephant_group_size_over_time</code>) are filtered to <code>Species responsible == "Elephant"</code> and <code>Measurement unit == "Acre"</code>, but are <em>not</em> restricted to Core AOO &mdash; they cover elephant incidents across all crop raid locations. If you're cross-checking against a Core-AOO-only figure, the totals won't match by design.</p>
+    </div>
+
+    <h2>Maps</h2>
+
+    <div class="error-block">
+      <p class="symptom">A month is missing from the per-month crop-destroyed map widget</p>
+      <p>The per-month maps are generated by splitting events on the calendar month name; a month with no crop raid events in your selected time range simply produces no view for that month in the merged widget. This is expected fan-out behaviour, not a failure.</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom">Map PNG is blank, cut off, or missing in the Word report</p>
+      <p>All map screenshots (density grid, response timing, species, and per-month crop maps) wait 40&nbsp;000&nbsp;ms for the basemap tiles to load before capturing the screenshot &mdash; far longer than the 1&nbsp;ms wait used for the batched Plotly charts, which render client-side without external tile requests. On a slow network this can still be insufficient for a consistently complete tile render.</p>
+    </div>
+
+    <h2>Report &amp; Dashboard</h2>
+
+    <div class="error-block">
+      <p class="symptom">Word report is missing an image, or fails to generate</p>
+      <p>If any upstream chart or PNG conversion failed or was skipped (e.g. due to an empty dataframe for a given filter), report generation can fail or produce a document with a missing image. Check the run logs for skipped tasks upstream of <code>generate_report</code>.</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom">Word report always says "Generated by Ecoscope"</p>
+      <p>This is expected &mdash; <code>generated_by</code> is a fixed string in <code>spec.yaml</code>, not looked up from the EarthRanger user who ran the workflow.</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom">No outputs written / can't find results</p>
+      <p>All outputs are written to the directory specified by the <code>ECOSCOPE_WORKFLOWS_RESULTS</code> environment variable. Confirm it's set and points to a directory the workflow process can write to.</p>
+    </div>
+
+    <h2>Contributing &amp; CI</h2>
+    <p>These apply if you're modifying the workflow itself (<code>spec.yaml</code>, <code>test-cases.yaml</code>, or the generated <code>ecoscope-workflows-bl-crop-raid-report-workflow/</code> directory) and opening a pull request.</p>
+
+    <div class="error-block">
+      <p class="symptom"><code>ecoscope-workflows-bl-crop-raid-report-workflow/</code> is missing from your checkout</p>
+      <p>This generated directory is tracked in git but can be absent from a local working tree (e.g. after a partial checkout or an interrupted recompile). Regenerate it before committing anything:</p>
+      <pre><code>pixi run --manifest-path pixi.toml --locked bash -c "./dev/recompile.sh --update"</code></pre>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom"><code>Generated files differ from committed files in ecoscope-workflows-bl-crop-raid-report-workflow</code></p>
+      <p>The generated workflow directory is out of sync with <code>spec.yaml</code>. Run the recompile script locally and commit the result (same command as above).</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom"><code>test-cases.yaml</code> references a <code>calculator</code> task that doesn't exist in this workflow</p>
+      <p>The current <code>test-cases.yaml</code> still contains <code>calculator</code> parameters (<code>a</code>, <code>b</code>, <code>operation</code>) left over from the workflow scaffold &mdash; <code>spec.yaml</code> has no task with that id. If you're updating test cases, replace these with parameters for the tasks this workflow actually exposes (<code>workflow_details</code>, <code>time_range</code>, and <code>er_client_name</code>).</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom"><code>Found wildcard version (*) in requirements</code> or <code>Found local file channel (file://) in requirements</code></p>
+      <p>In <code>spec.yaml</code>, every dependency under <code>requirements</code> must pin an exact version and use a remote conda channel &mdash; wildcard versions and local <code>file://</code> channels are only valid for local development, not for CI using published packages.</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom"><code>VERSION.yaml (...) must be greater than main branch (...)</code></p>
+      <p>Bump <code>MAJ</code>/<code>MIN</code>/<code>PATCH</code> in <code>ecoscope-workflows-bl-crop-raid-report-workflow/VERSION.yaml</code> so it's strictly greater than the version on <code>main</code> before opening or updating a PR.</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom">Workflow tests fail in CI but pass locally (or vice versa)</p>
+      <p><code>test.yml</code> runs test cases against all of <code>ubuntu-latest</code>, <code>macos-latest</code>, and <code>windows-latest</code>. If a test only fails on CI, check whether it depends on EarthRanger credentials being available as secrets, or on OS-specific path handling.</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>BL Crop Raid Report &middot; <a href="https://github.com/wildlife-dynamics/bl_crop_raid_report">wildlife-dynamics/bl_crop_raid_report</a> on GitHub</p>
+  </footer>
+</body>
+</html>

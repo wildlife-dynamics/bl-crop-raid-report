@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Guide — BL Crop Raid Report</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="bar">
+      <a class="brand" href="index.html">BL Crop Raid Report</a>
+      <nav>
+        <a href="index.html">Overview</a>
+        <a href="user-guide.html" class="active">User Guide</a>
+        <a href="technical-guide.html">Technical Guide</a>
+        <a href="troubleshooting.html">Troubleshooting</a>
+        <a href="https://github.com/wildlife-dynamics/bl_crop_raid_report">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>BL Crop Raid Report &mdash; User Guide</h1>
+    <p class="lede">This guide walks you through configuring and running the Big Life Crop Raid Report workflow, which ingests human-wildlife conflict crop raid events from EarthRanger and produces a comprehensive incident analysis report and dashboard for the Amboseli ecosystem.</p>
+
+    <h2>What it produces</h2>
+    <ul>
+      <li><strong>Charts</strong> &mdash; time-of-day incident distribution, damage size boxplot by ranger response timing, monthly incidents by crop raid location, crop species pie charts (by count and by area), and monthly incidents/damage stacked bars</li>
+      <li><strong>Maps</strong> &mdash; a crop raid density grid, a timing-of-ranger-response scatter map, a species-responsible scatter map, and a per-month crop-destroyed scatter map (one view per month)</li>
+      <li><strong>Summary tables</strong> &mdash; elephant damage by month, mean elephant group size, ranger response timing with percentages, total acres damaged, species damage, and crop damage (6 GeoParquet tables)</li>
+      <li><strong>A Word document report</strong> (<code>overall_report.docx</code>) &mdash; every chart, map, and table assembled into the Big Life crop raid report template, downloaded automatically from Dropbox</li>
+      <li><strong>An interactive dashboard</strong> &mdash; 17 widgets covering every chart, map, and table produced by the run (the per-month crop maps are merged into a single switchable widget)</li>
+    </ul>
+    <p>The three Amboseli geospatial layers and the Word report template are downloaded automatically from Dropbox at run time.</p>
+
+    <h2>Requirements</h2>
+    <ul>
+      <li>Access to an <strong>EarthRanger</strong> instance with <code>hwc_crop_raids</code> events logged for the analysis period</li>
+    </ul>
+
+    <h2 id="load">1. Load the Workflow</h2>
+    <p>In the workflow runner, go to <strong>Workflow Templates</strong> and click <strong>Add Workflow Template</strong>. Paste this repository's URL into the <strong>Github Link</strong> field, then click <strong>Add Template</strong>:</p>
+    <pre><code>https://github.com/wildlife-dynamics/bl_crop_raid_report.git</code></pre>
+    <p>Once added, it appears in the <strong>Workflow Templates</strong> list as <strong>bl_crop_raid_report</strong>. Click the card to open the workflow configuration form. The card may show <strong>Initializing&hellip;</strong> briefly while the environment is set up.</p>
+
+    <h2 id="configure">2. Configure the Workflow</h2>
+
+    <h3 id="connection">EarthRanger Connection</h3>
+    <p>Navigate to <strong>Data Sources</strong> and click <strong>Connect</strong>, then select <strong>EarthRanger</strong>. Fill in the connection form:</p>
+    <table>
+      <thead><tr><th>Field</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>Data Source Name</td><td>A label to identify this connection</td></tr>
+        <tr><td>EarthRanger URL</td><td>Your instance URL (e.g. <code>your-site.pamdas.org</code>)</td></tr>
+        <tr><td>EarthRanger Username</td><td>Your EarthRanger username</td></tr>
+        <tr><td>EarthRanger Password</td><td>Your EarthRanger password</td></tr>
+      </tbody>
+    </table>
+    <p>Credentials are not validated at setup time. Any authentication errors will appear when the workflow runs. Click <strong>Connect</strong> to save.</p>
+
+    <h3 id="workflow-details">Workflow Details, Report Time Range &amp; Connect to EarthRanger</h3>
+    <table>
+      <thead><tr><th>Field</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>Workflow Name</td><td>A short name to identify this run</td></tr>
+        <tr><td>Workflow Description</td><td>Optional notes (e.g. month, site, or reporting period)</td></tr>
+        <tr><td>Timezone</td><td>Select the local timezone (e.g. <code>Africa/Nairobi UTC+03:00</code>)</td></tr>
+        <tr><td>Since</td><td>Start date and time of the analysis period</td></tr>
+        <tr><td>Until</td><td>End date and time of the analysis period</td></tr>
+        <tr><td>Data Source</td><td>The EarthRanger connection configured above (e.g. <code>Amboseli Trust for Elephants</code>)</td></tr>
+      </tbody>
+    </table>
+    <p>All crop raid events are fetched within this window. Monthly breakdowns in the charts, tables, and maps are derived from the event timestamps within this range.</p>
+    <p>Once all sections are filled, click <strong>Submit</strong>.</p>
+
+    <h2 id="run">3. Run the Workflow</h2>
+    <p>Once submitted, the runner will:</p>
+    <ol>
+      <li>Download the Amboseli land-use, ranch boundary, and electric fence layers from Dropbox and reproject them to EPSG:4326.</li>
+      <li>Fetch <code>hwc_crop_raids</code> events from EarthRanger for the specified time range.</li>
+      <li>Process and normalise event details (field titles, numeric conversions, 3-hour time bins).</li>
+      <li>Generate all 7 charts and persist as HTML and PNG.</li>
+      <li>Generate the density grid map, timing-of-response map, species map, and a per-month crop-destroyed map (one view per month).</li>
+      <li>Compute 6 summary tables and persist as GeoParquet files.</li>
+      <li>Download the Big Life crop raid Word template from Dropbox and populate it with all charts, maps, and tables.</li>
+      <li>Assemble the 17-widget dashboard.</li>
+      <li>Save all files to the directory specified by <code>ECOSCOPE_WORKFLOWS_RESULTS</code>.</li>
+    </ol>
+
+    <h3 id="output-files">Output Files</h3>
+    <p>All outputs are written to <code>$ECOSCOPE_WORKFLOWS_RESULTS/</code>.</p>
+    <table>
+      <thead><tr><th>File</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>time_bin_bar_chart</code> (<code>.html</code> + <code>.png</code>)</td><td>Time of day bar chart (3-hour bins)</td></tr>
+        <tr><td><code>damage_size_boxplot</code> (<code>.html</code> + <code>.png</code>)</td><td>Damage size boxplot by ranger response timing</td></tr>
+        <tr><td><code>monthly_crop_raid_location_incidents</code> (<code>.html</code> + <code>.png</code>)</td><td>Monthly incidents stacked by crop raid location</td></tr>
+        <tr><td><code>proportion_crop_species_targeted</code> (<code>.html</code> + <code>.png</code>)</td><td>Crop species pie chart by incident count (Core AOO, damage-confirmed incidents only)</td></tr>
+        <tr><td><code>proportion_land_damaged</code> (<code>.html</code> + <code>.png</code>)</td><td>Crop species pie chart by total acres damaged (Core AOO, damage-confirmed incidents only)</td></tr>
+        <tr><td><code>total_incidents_recorded</code> (<code>.html</code> + <code>.png</code>)</td><td>Monthly incidents stacked by crop (Core AOO; only 6 named crops are broken out, all others grouped as "Other")</td></tr>
+        <tr><td><code>total_damage_recorded</code> (<code>.html</code> + <code>.png</code>)</td><td>Monthly damage stacked by crop (Core AOO; see note below)</td></tr>
+        <tr><td><code>crop_raid_incident_density_map</code> (<code>.html</code> + <code>.png</code>)</td><td>Density grid map of all crop raid incidents</td></tr>
+        <tr><td><code>timing_of_response_event_map</code> (<code>.html</code> + <code>.png</code>)</td><td>Scatter map coloured by ranger response timing</td></tr>
+        <tr><td><code>species_responsible_event_map</code> (<code>.html</code> + <code>.png</code>)</td><td>Scatter map coloured by species responsible</td></tr>
+        <tr><td><code>&lt;month&gt;</code> (<code>.html</code> + <code>.png</code>, one per month)</td><td>Per-month crop-destroyed scatter map</td></tr>
+        <tr><td><code>total_land_size_damaged_by_elephants</code> (GeoParquet)</td><td>Elephant damage by month and crop species (acres)</td></tr>
+        <tr><td><code>average_elephant_group_size_over_time</code> (GeoParquet)</td><td>Mean elephant group size per month</td></tr>
+        <tr><td><code>timing_of_ranger_response</code> (GeoParquet)</td><td>Ranger response timing crosstab with percentages</td></tr>
+        <tr><td><code>total_area_damaged_by_crop_raid_location</code> (GeoParquet)</td><td>Acres damaged by response timing and location</td></tr>
+        <tr><td><code>total_land_damage_by_species_responsible</code> (GeoParquet)</td><td>Species incidents and acres by crop raid location</td></tr>
+        <tr><td><code>total_crops_damaged_by_species</code> (GeoParquet)</td><td>Crop incidents and acres by crop raid location</td></tr>
+        <tr><td><code>overall_report.docx</code></td><td>Final populated Word crop raid report</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Note:</strong> despite its "Acres" axis label, <code>total_damage_recorded</code> is not currently filtered to acre-measured events &mdash; it charts <code>Damage size</code> across whatever measurement units are present. See <a href="troubleshooting.html">Troubleshooting</a>.</p>
+
+    <p>Something not working as expected? See <a href="troubleshooting.html">Troubleshooting</a>. For a deeper look at the pipeline internals, see the <a href="technical-guide.html">Technical Guide</a>.</p>
+  </main>
+
+  <footer class="site-footer">
+    <p>BL Crop Raid Report &middot; <a href="https://github.com/wildlife-dynamics/bl_crop_raid_report">wildlife-dynamics/bl_crop_raid_report</a> on GitHub</p>
+  </footer>
+</body>
+</html>

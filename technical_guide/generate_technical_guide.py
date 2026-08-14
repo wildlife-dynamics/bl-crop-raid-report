@@ -8,10 +8,10 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, PageBreak,
+    HRFlowable, PageBreak, KeepTogether
 )
 from datetime import date
 
@@ -20,6 +20,7 @@ OUTPUT_FILE = "bl_crop_raid_report_technical_guide.pdf"
 # ── Colour palette ─────────────────────────────────────────────────────────────
 GREEN_DARK  = colors.HexColor("#115631")
 GREEN_MID   = colors.HexColor("#2d6a4f")
+GREEN_LIGHT = colors.HexColor("#d8f3dc")
 AMBER       = colors.HexColor("#e7a553")
 SLATE       = colors.HexColor("#3d3d3d")
 LIGHT_GREY  = colors.HexColor("#f5f5f5")
@@ -40,16 +41,19 @@ SUBTITLE = _style("DocSubtitle", fontSize=13, leading=18, textColor=SLATE,
                   spaceAfter=4,  alignment=TA_CENTER)
 META     = _style("Meta",        fontSize=9,  leading=13, textColor=colors.grey,
                   alignment=TA_CENTER, spaceAfter=2)
+
 H1       = _style("H1", fontSize=15, leading=20, textColor=GREEN_DARK,
                   spaceBefore=18, spaceAfter=6, fontName="Helvetica-Bold")
 H2       = _style("H2", fontSize=12, leading=16, textColor=GREEN_MID,
                   spaceBefore=12, spaceAfter=4, fontName="Helvetica-Bold")
 H3       = _style("H3", fontSize=10, leading=14, textColor=SLATE,
                   spaceBefore=8,  spaceAfter=3, fontName="Helvetica-Bold")
+
 BODY     = _style("Body", fontSize=9, leading=14, textColor=SLATE,
                   spaceAfter=6, alignment=TA_JUSTIFY)
 BULLET   = _style("BulletItem", fontSize=9, leading=14, textColor=SLATE,
-                  spaceAfter=3, leftIndent=14, firstLineIndent=-10, bulletIndent=4)
+                  spaceAfter=3, leftIndent=14, firstLineIndent=-10,
+                  bulletIndent=4)
 CODE     = _style("InlineCode", fontSize=8, leading=12, fontName="Courier",
                   backColor=LIGHT_GREY, textColor=colors.HexColor("#c0392b"),
                   spaceAfter=4, leftIndent=10, rightIndent=10, borderPad=3)
@@ -67,8 +71,10 @@ def h3(text):            return Paragraph(text, H3)
 def sp(n=6):             return Spacer(1, n)
 def bullet(text):        return Paragraph(f"• {text}", BULLET)
 def note(text):          return Paragraph(f"<b>Note:</b> {text}", NOTE)
+def code(text):          return Paragraph(text, CODE)
 
 def c(text):
+    """Wrap text in a Paragraph for use inside Table cells."""
     return Paragraph(str(text), BODY)
 
 def make_table(data, col_widths, header_row=True):
@@ -116,6 +122,7 @@ def build():
         title="BL Crop Raid Report — Technical Guide",
         author="Ecoscope",
     )
+
     story = []
 
     # ── Cover ──────────────────────────────────────────────────────────────────
@@ -126,7 +133,7 @@ def build():
         sp(8),
         hr(),
         p("Human-Wildlife Conflict Analysis — Methodology &amp; Calculation Reference", META),
-        p(f"Version 1.0  ·  Generated {date.today().strftime('%B %d, %Y')}", META),
+        p(f"Version 2.0  ·  Generated {date.today().strftime('%B %d, %Y')}", META),
         hr(),
         PageBreak(),
     ]
@@ -140,14 +147,20 @@ def build():
             "built for Big Life Foundation's human-wildlife conflict (HWC) monitoring "
             "programme in the Amboseli ecosystem. It ingests crop raid events of type "
             "<code>hwc_crop_raids</code> from <b>EarthRanger</b>, transforms and "
-            "classifies the event details, and produces a comprehensive suite of charts, "
-            "maps, summary tables, and a print-ready Word report."
+            "classifies the event details, and produces charts, maps, summary tables, "
+            "a Word report, and a dashboard."
         ),
-        p(
-            "The workflow is implemented as an <b>Ecoscope Workflow</b> (YAML spec) "
-            "and executes within the <code>ecoscope-workflows</code> runtime. "
-            "Per-month crop event maps are produced via the <code>mapvalues</code> "
-            "directive, grouping by <code>ts_month_name</code>."
+        sp(4),
+        note(
+            "Version 2.0 rewrites this guide against the current <code>spec.yaml</code> "
+            "(id <code>crop_raid_report</code>). It corrects the dependency list "
+            "(migrated to <code>ecoscope-platform</code>), the real task names — "
+            "several in the previous version (e.g. <code>generate_density_grid</code>, "
+            "<code>draw_custom_stacked_bar_chart</code>, <code>zip_groupbykey</code>, "
+            "<code>extract_dt_attributes</code>) matched nothing in <code>spec.yaml</code> — "
+            "the Word report's fixed <code>\"Ecoscope\"</code> author field and "
+            "<code>overall_report.docx</code> filename, and the dashboard, which wires "
+            "up 17 widgets rather than an empty/metadata-only one."
         ),
         sp(4),
         p("The workflow delivers the following outputs per run:"),
@@ -155,10 +168,10 @@ def build():
             [
                 ["Category",       "Outputs"],
                 ["Charts",         "Time-of-day bar chart, damage size boxplot, monthly crop raid locations, crop species pie charts (count + area), monthly incidents and damage stacked bars — 7 charts total"],
-                ["Maps",           "Crop raid density grid map, timing of ranger response scatter map, species responsible scatter map, per-month crop destroyed scatter maps"],
-                ["Summary tables", "6 GeoParquet tables: elephant damage by month, mean elephant group size, ranger response timing, total acres damaged, species damage, crop damage"],
-                ["Report",         "Word document: Big Life crop raid template populated with all charts, maps, and tables"],
-                ["Dashboard",      "Metadata dashboard (run details, time range, groupers)"],
+                ["Maps",           "Crop raid density grid map, timing-of-ranger-response scatter map, species-responsible scatter map, and a per-month crop-destroyed scatter map (one view per month present in the data)"],
+                ["Summary tables", "6 GeoParquet tables (+ matching HTML dashboard tables): elephant damage by month, mean elephant group size, ranger response timing, total acres damaged, species damage, crop damage"],
+                ["Report",         "Word document (overall_report.docx): Big Life crop raid template populated with every chart, map, and table"],
+                ["Dashboard",      "17 widgets — every chart, map, and table above (the per-month crop maps are merged into a single switchable widget)"],
             ],
             [4*cm, 12.5*cm],
         ),
@@ -168,7 +181,36 @@ def build():
     story += [
         sp(4), h1("2. Dependencies &amp; Prerequisites"), hr(),
 
-        h2("2.1 EarthRanger Connection"),
+        h2("2.1 Python packages"),
+        p("The workflow declares eight versioned packages, resolved from the Ecoscope prefix.dev channels:"),
+        make_table(
+            [
+                ["Package",                            "Version",       "Channel"],
+                ["ecoscope-platform",                   "2.18.0",        "ecoscope-workflows"],
+                ["ecoscope-workflows-ext-custom",       "0.1.0rc14.*",   "ecoscope-workflows-custom"],
+                ["ecoscope-workflows-ext-ste",          "0.0.0rc1.*",    "ecoscope-workflows-custom"],
+                ["ecoscope-workflows-ext-mnc",          "1.0.0.*",       "ecoscope-workflows-custom"],
+                ["ecoscope-workflows-ext-wwf-virunga",  "0.0.0rc9.*",    "ecoscope-workflows-custom"],
+                ["ecoscope-workflows-ext-big-life",     "1.0.1.*",       "ecoscope-workflows-custom"],
+                ["pydeck",                              "0.9.2",         "conda-forge"],
+                ["opentelemetry-sdk",                   "&gt;=1.20.0,&lt;2.0.0", "conda-forge"],
+            ],
+            [6.5*cm, 3.2*cm, 6.3*cm],
+        ),
+        p(
+            "The bar, pie, and boxplot chart tasks come from "
+            "<code>ecoscope-workflows-ext-wwf-virunga</code>. Nearly all crop-raid-specific "
+            "transformation tasks (time-bin assignment, crosstab summaries, row ordering, "
+            "percentage strings, column suffixes, aggregation, boxplot rendering, and the "
+            "Word report generator) come from <code>ecoscope-workflows-ext-big-life</code>. "
+            "Integer conversion and missing-value filling come from "
+            "<code>ecoscope-workflows-ext-mnc</code>. The Dropbox fetch, event-detail title "
+            "mapping, geojson/scatterplot layer creation, and map-layer combination tasks "
+            "come from <code>ecoscope-workflows-ext-ste</code> and "
+            "<code>ecoscope-workflows-ext-custom</code>."
+        ),
+
+        sp(4), h2("2.2 EarthRanger Connection"),
         p(
             "All crop raid data is sourced from an <b>EarthRanger</b> instance via "
             "<code>set_er_connection</code>. The workflow fetches events of type "
@@ -176,32 +218,27 @@ def build():
             "<code>raise_on_empty: true</code> causes the workflow to halt with an "
             "error if no events are found — distinguishing a data-availability "
             "problem from a genuine zero-incident period. "
-            "<code>include_display_values: true</code> is set so that EarthRanger "
-            "returns human-readable display values for choice fields."
-        ),
-        p(
-            "The connection is also used to resolve the currently authenticated "
-            "user's full name (<code>get_current_user</code> → <code>get_user_full_name</code>) "
-            "for the <i>Generated by</i> field in the Word report."
+            "<code>include_display_values: true</code> ensures choice fields are "
+            "returned as human-readable labels rather than internal codes."
         ),
 
-        sp(4), h2("2.2 Static Geospatial Layers"),
+        sp(4), h2("2.3 Static Geospatial Layers"),
         p(
-            "Two GeoPackage files are downloaded from Dropbox at run time and "
-            "reprojected to <b>EPSG:4326</b> before use. A third file "
-            "(<code>amboseli_group_ranch_boundaries.gpkg</code>) is also downloaded "
-            "but is not used in downstream map layers for this workflow."
+            "Three GeoPackage files are downloaded from Dropbox at run time "
+            "(<code>overwrite_existing: false</code>, 3 retries) and reprojected to "
+            "<b>EPSG:4326</b> before use."
         ),
         make_table(
             [
-                ["File",                                                  "Used for",                        "Key column"],
-                ["amboseli_ranch_conservancies_layers.gpkg",              "Land-use fill polygons on all maps","land_use (5 categories)"],
-                ["amboseli_group_ranch_boundaries_x_electric_fence.gpkg","Ranch boundaries + electric fence","land_use (Ranch boundaries, Electric Fence)"],
+                ["File",                                                   "Used for",                          "Key column"],
+                ["amboseli_ranch_conservancies_layers.gpkg",               "Land-use fill polygons on all maps", "land_use (5 categories)"],
+                ["amboseli_group_ranch_boundaries_x_electric_fence.gpkg",  "Ranch boundaries + electric fence",  "land_use (Ranch boundaries, Electric Fence)"],
+                ["amboseli_group_ranch_boundaries.gpkg",                   "Downloaded and reprojected, not otherwise used downstream", "—"],
             ],
-            [5.5*cm, 6*cm, 5*cm],
+            [6*cm, 6*cm, 3.5*cm],
         ),
 
-        sp(4), h2("2.3 Base Map Tile Layers"),
+        sp(4), h2("2.4 Base Map Tile Layers"),
         make_table(
             [
                 ["Layer",                  "URL (abbreviated)",                       "Opacity", "Max zoom"],
@@ -211,35 +248,35 @@ def build():
             [4.5*cm, 7*cm, 2*cm, 2.5*cm],
         ),
 
-        sp(4), h2("2.4 Land-use and Boundary Layer Styles"),
-        p("Land-use polygons are split by <code>land_use</code> and styled as follows:"),
+        sp(4), h2("2.5 Land-use and Boundary Layer Styles"),
+        p("Land-use polygons are coloured by <code>land_use</code> value (<code>apply_color_map</code> + <code>create_geojson_layer</code>, 75% opacity):"),
         make_table(
             [
-                ["Category",                   "Fill / Line Colour",              "Opacity"],
-                ["Rangeland",                  "RGB(163, 156, 145)  —  #a39c91", "75 %"],
-                ["Rangeland and settlement",   "RGB(255, 160, 122)  —  #ffa07a", "75 %"],
-                ["Settlement and agriculture", "RGB(47,  79,  79)   —  #2f4f4f", "75 %"],
-                ["Conservancies",              "RGB(143, 188, 139)  —  #8fbc8b", "75 %"],
-                ["National parks and reserves","RGB(77,  102,  0)   —  #4d6600", "75 %"],
+                ["Category",                   "Hex colour"],
+                ["Rangeland",                  "#a39c91"],
+                ["Rangeland and settlement",   "#ffa07a"],
+                ["Settlement and agriculture", "#2f4f4f"],
+                ["Conservancies",              "#8fbc8b"],
+                ["National parks and reserves","#4d6600"],
             ],
-            [5*cm, 6.5*cm, 4*cm],
+            [7*cm, 8.5*cm],
         ),
-        p("Ranch boundaries and electric fence are line layers (no fill):"),
+        p("Ranch boundaries and electric fence are separate line layers (no fill):"),
         make_table(
             [
-                ["Feature",         "Colour",                        "Width",   "Opacity"],
-                ["Ranch boundaries","RGB(0, 0, 0)  —  black",        "0.95",   "55 %"],
-                ["Electric Fence",  "RGB(45, 98, 177)  —  #2d62b1", "5.5 px", "100 %"],
+                ["Feature",         "Colour",     "Width / Opacity"],
+                ["Ranch boundaries","#000000  —  black",  "0.95 px / 55%"],
+                ["Electric Fence",  "#2d62b1",             "5.5 px / 100%"],
             ],
-            [4*cm, 5*cm, 2.5*cm, 5*cm],
+            [4*cm, 6*cm, 5.5*cm],
         ),
 
-        sp(4), h2("2.5 Grouping Strategy"),
+        sp(4), h2("2.6 Grouping Strategy"),
         p(
             "The grouper is fixed to <code>ts_month_name</code> — the calendar month "
-            "name derived from the event timestamp. This drives the <code>split_by_month</code> "
-            "fan-out that produces one crop event map per month. "
-            "It is also used as the temporal index key for the event DataFrame."
+            "name derived from the event timestamp (<code>set_groupers</code>, not "
+            "user-configurable). This drives the <code>split_by_month</code> fan-out "
+            "that produces one crop-destroyed map per month present in the data."
         ),
     ]
 
@@ -250,71 +287,51 @@ def build():
         h2("3.1 Event Fetch — hwc_crop_raids"),
         p(
             "<code>get_events</code> queries EarthRanger for events of type "
-            "<code>hwc_crop_raids</code>. <code>include_details: true</code> "
-            "returns the full <code>event_details</code> JSON blob. "
-            "<code>include_display_values: true</code> ensures choice fields "
-            "are returned as human-readable labels rather than internal codes. "
-            "Only events with a valid point geometry are included "
-            "(<code>include_null_geometry: false</code>)."
+            "<code>hwc_crop_raids</code>, with <code>include_details: true</code>, "
+            "<code>include_display_values: true</code>, and "
+            "<code>force_point_geometry: true</code>. Only events with a valid point "
+            "geometry are included."
         ),
         p("Columns retrieved per event:"),
         bullet("id, time, event_type, event_category, reported_by, serial_number, geometry, created_at, event_details"),
 
         sp(4), h2("3.2 Event Details Processing"),
         p(
-            "<code>process_events_details</code> is called with "
-            "<code>map_to_titles: true</code> and <code>ordered: true</code>. "
-            "This step retrieves the EarthRanger event schema for "
-            "<code>hwc_crop_raids</code> and maps each field's internal key to its "
-            "display title (e.g. <code>hwc_damage_size</code> → "
-            "<code>Damage size</code>). "
-            "<code>ordered: true</code> preserves the field ordering as defined "
-            "in the EarthRanger event form, giving consistent column ordering "
-            "in all downstream DataFrames."
-        ),
-        note(
-            "This title-mapping step is what makes downstream column references use "
-            "human-readable names such as <code>'Main crop destroyed'</code>, "
-            "<code>'Crop raid location'</code>, and <code>'Species responsible'</code> "
-            "rather than internal field IDs."
+            "<code>process_events_details</code> (id <code>process_crop_details</code>) "
+            "is called with <code>map_to_titles: true</code> and <code>ordered: true</code>, "
+            "mapping each field's internal key to its EarthRanger display title (e.g. "
+            "&ldquo;Main crop destroyed&rdquo;, &ldquo;Crop raid location&rdquo;, "
+            "&ldquo;Species responsible&rdquo;) and preserving field order."
         ),
 
         sp(4), h2("3.3 JSON Normalisation and Prefix Removal"),
         p(
-            "<code>normalize_json_column</code> flattens the <code>event_details</code> "
-            "JSON object into individual columns named "
-            "<code>event_details__&lt;field_title&gt;</code>. "
-            "<code>drop_column_prefix</code> then strips the "
-            "<code>event_details__</code> prefix from all column names. "
-            "<code>duplicate_strategy: keep_original</code> retains the original "
-            "column if a name collision occurs after prefix removal."
+            "<code>normalize_json_column</code> flattens <code>event_details</code> "
+            "into individual <code>event_details__&lt;title&gt;</code> columns. "
+            "<code>drop_column_prefix</code> then strips the <code>event_details__</code> "
+            "prefix (<code>duplicate_strategy: keep_original</code>)."
         ),
 
         sp(4), h2("3.4 Column Selection and Type Conversion"),
         p(
-            "<code>map_columns</code> drops columns that are not required for "
-            "analysis:"
-        ),
-        make_table(
-            [
-                ["Dropped column",              "Reason"],
-                ["event_category, event_type, reported_by, event_type_display", "Administrative metadata not used in analysis"],
-                ["Additional information",       "Free-text field; not structured"],
-                ["Area, Deterrent methods used", "Sparse / ancillary fields"],
-                ["GPS Accuracy",                 "Quality flag; not used in spatial analysis"],
-                ["Partners present, Sector, Teams involved", "Operational metadata"],
-                ["Secondary crop destroyed, Secondary species responsible", "Consolidated into primary fields for simplicity"],
-            ],
-            [6*cm, 10.5*cm],
+            "<code>map_columns</code> drops four administrative columns not used in "
+            "analysis: <code>event_category</code>, <code>event_type</code>, "
+            "<code>reported_by</code>, <code>event_type_display</code>. All other "
+            "detail fields are retained as-is."
         ),
         p("Two numeric conversions follow:"),
-        bullet("<b>Damage size → float</b> (<code>convert_to_float</code>, errors coerced, null filled with 0)"),
-        bullet("<b>Number of animals → int</b> (<code>convert_to_int</code>, errors coerced, null filled with 0)"),
+        bullet("<b>Damage size → float</b> (<code>ecoscope_workflows_ext_big_life.tasks.transformation.convert_columns_to_float</code>, errors coerced, null filled with 0)"),
+        bullet("<b>Number of animals → int</b> (<code>ecoscope_workflows_ext_mnc.tasks.transformation.convert_columns_to_int</code>, errors coerced, null filled with 0)"),
+        p(
+            "<code>fill_missing_values</code> then fills blanks in <b>Time of ranger "
+            "response</b>, <b>Species responsible</b>, and <b>Main crop destroyed</b> "
+            "with the string <code>\"Unknown\"</code>."
+        ),
 
         sp(4), h2("3.5 Temporal Attribute Extraction"),
         p(
-            "<code>extract_dt_attributes</code> derives three columns from the "
-            "<code>Date and time of raid</code> field:"
+            "<code>decompose_datetime</code> (id <code>extract_date</code>) derives "
+            "three columns from <b>Date and time of raid</b>, all prefixed <code>ts_</code>:"
         ),
         make_table(
             [
@@ -328,9 +345,10 @@ def build():
 
         sp(4), h2("3.6 Time Bin Assignment"),
         p(
-            "<code>assign_time_bins</code> groups the <code>ts_hour</code> integer "
-            "into 3-hour bins, producing the <code>time_bin</code> column. "
-            "The 8 bins cover the full 24-hour day:"
+            "<code>assign_time_bins</code> (from <code>ecoscope-workflows-ext-big-life</code>) "
+            "groups <code>ts_hour</code> into 3-hour bins, producing the "
+            "<code>time_bin</code> column. Note the bins are labelled/ordered starting "
+            "at midday, not midnight:"
         ),
         make_table(
             [
@@ -347,8 +365,8 @@ def build():
             [5*cm, 11.5*cm],
         ),
         p(
-            "All subsequent charts and analyses operate on the enriched DataFrame "
-            "produced after this step (<code>assign_custom_bins.return</code>)."
+            "All subsequent charts, maps, and tables operate on this enriched "
+            "DataFrame (<code>assign_custom_bins.return</code>)."
         ),
     ]
 
@@ -358,255 +376,225 @@ def build():
 
         h2("4.1 Time of Day Bar Chart"),
         p(
-            "<code>aggregate_by</code> counts events per <code>time_bin</code>, "
-            "then <code>draw_custom_bar_chart</code> renders the distribution "
-            "of crop raid incidents across the 24-hour day in 3-hour segments. "
-            "Bars are ordered from midday onwards (12:01 → 09:01) to keep the "
-            "late-evening / nocturnal peak visually prominent. "
-            "Plot background: <code>#f5f5f5</code>; legend hidden."
+            "<code>ecoscope_workflows_ext_big_life.tasks.transformation.aggregate_by</code> "
+            "counts events per <code>time_bin</code>; <code>draw_bar_chart</code> "
+            "(grouped mode) then renders the distribution across the fixed "
+            "12:01&rarr;09:00 bin order (see &sect;3.6). Bar colour "
+            "<code>#6495ed</code>; plot background <code>#f5f5f5</code>; legend hidden."
         ),
+        p("Output: <b>time_bin_bar_chart</b>"),
 
         sp(4), h2("4.2 Damage Size Boxplot"),
         p(
-            "<code>draw_boxplot</code> shows the distribution of field-measured "
-            "damage area (acres) broken down by <b>Time of ranger response</b> "
-            "(Before / During / After crop raid). "
-            "Only rows with <code>Measurement unit == 'Acre'</code> are included. "
-            "Orientation is vertical (<code>y_column: Damage size</code>, "
-            "<code>x_column: Time of ranger response</code>), "
-            "individual points are hidden (<code>show_points: false</code>), "
-            "and boxes are filled in <code>#7eb0d5</code> (steel blue)."
+            "<code>ecoscope_workflows_ext_big_life.tasks.results.draw_boxplot</code> "
+            "shows the distribution of <b>Damage size</b> broken down by <b>Time of "
+            "ranger response</b> (Before / During / After crop raid), restricted to "
+            "rows where <b>Measurement unit == \"Acre\"</b>. Vertical orientation, "
+            "points hidden, box colour <code>#7eb0d5</code>."
         ),
-        note(
-            "The boxplot deliberately excludes non-Acre measurements (e.g. plots, "
-            "rows) to ensure all values are on a comparable scale. If a user logs "
-            "a raid in a different unit it will be silently excluded from this chart."
-        ),
+        p("Output: <b>damage_size_boxplot</b>"),
 
         sp(4), h2("4.3 Monthly Crop Raid Locations Stacked Bar"),
         p(
-            "<code>draw_custom_stacked_bar_chart</code> shows the number of crop raid "
-            "incidents per month, stacked by <b>Crop raid location</b>. "
-            "Month order is fixed January → December regardless of which months "
-            "have data. Stack order and colours:"
+            "<code>draw_bar_chart</code> (stacked mode) counts incidents per month "
+            "(<code>ts_month_name</code> category, <code>ts_month</code> counted), "
+            "stacked by <b>Crop raid location</b>. Uses the full dataset — not "
+            "restricted to Core AOO. Month order fixed January&rarr;December."
         ),
         make_table(
             [
                 ["Crop raid location", "Colour"],
-                ["Core AOO",           "#a6cee3  (light blue)"],
-                ["Non-core AOO",       "#b2df8a  (light green)"],
-                ["Outside AOO",        "#fdbf6f  (peach)"],
-                ["Unknown",            "#cfcfc4  (grey)"],
+                ["Core AOO",           "#a6cee3"],
+                ["Non-core AOO",       "#b2df8a"],
+                ["Outside AOO",        "#fdbf6f"],
+                ["Unknown",            "#cfcfc4"],
             ],
             [5*cm, 11.5*cm],
         ),
+        p("Output: <b>monthly_crop_raid_location_incidents</b>"),
 
         sp(4), h2("4.4 Crop Species Pie Chart (Incident Count)"),
         p(
-            "Filtered to <b>Core AOO</b> events where <b>Damage caused = Yes</b>. "
-            "<code>aggregate_by</code> counts incidents per <code>Main crop destroyed</code>. "
-            "<code>draw_pie_chart</code> renders proportion labels as percentages "
-            "(<code>textinfo: percent</code>). Each of the 24 crop types has a "
-            "distinct pastel colour assigned by <code>map_color_column_value</code>."
+            "Filtered to <b>Core AOO</b> events where <b>Damage caused = \"Yes\"</b>. "
+            "<code>aggregate_by</code> counts incidents per <b>Main crop destroyed</b>, "
+            "then <code>draw_pie_chart</code> (<code>textinfo: percent</code>) renders "
+            "the split. Each of 25 crop values (23 named crops + None + Unknown) has "
+            "its own pastel colour."
         ),
+        p("Output: <b>proportion_crop_species_targeted</b>"),
 
-        sp(4), h2("4.5 Crop Damage Pie Chart (Area in Acres)"),
+        sp(4), h2("4.5 Crop Damage Pie Chart (Area)"),
         p(
-            "Same Core AOO / Damage = Yes filter as Section 4.4, further restricted "
-            "to <code>Measurement unit == 'Acre'</code>. "
-            "<code>aggregate_by</code> sums <code>Damage size</code> per crop species. "
-            "The pie chart shows <i>proportion of total acreage destroyed</i> "
-            "rather than incident count, revealing which crops suffer the "
-            "greatest land-area losses even if infrequently raided."
+            "Same Core AOO / Damage-caused-Yes filter as &sect;4.4, further restricted "
+            "to <b>Measurement unit == \"Acre\"</b>. Sums <b>Damage size</b> per crop "
+            "species rather than counting incidents, so it shows proportion of land "
+            "area destroyed, not incident frequency."
         ),
+        p("Output: <b>proportion_land_damaged</b>"),
 
         sp(4), h2("4.6 Monthly Incidents Stacked Bar (Core AOO, Top Crops)"),
         p(
-            "Filtered to <b>Core AOO</b>. "
-            "The 24 crop species are consolidated to 5 named crops plus <i>Other</i> "
-            "by <code>map_column_value</code> → <code>other_crops_destroyed</code>:"
+            "Filtered to <b>Core AOO</b> (all incidents, not restricted to "
+            "damage-confirmed). <code>map_column_value</code> consolidates the 25 crop "
+            "values into 6 named crops plus <i>Other</i> (<code>other_crops_destroyed</code>):"
         ),
         make_table(
             [
-                ["Grouped value",  "Colour",   "Crops included"],
-                ["Beans",          "#cbd5e8",  "Beans"],
-                ["Maize",          "#decbe4",  "Maize"],
-                ["Onion",          "#fed9a6",  "Onion"],
-                ["Tomatoes",       "#fcd5ce",  "Tomatoes"],
-                ["Watermelon",     "#d4ede8",  "Watermelon"],
-                ["Other",          "#fee8c8",  "All remaining 19 crop types + None"],
+                ["Grouped value",  "Included"],
+                ["Beans",          "Beans"],
+                ["Maize",          "Maize"],
+                ["Onion",          "Onion"],
+                ["Tomatoes",       "Tomatoes"],
+                ["Watermelon",     "Watermelon"],
+                ["Other",          "All remaining crop values, including French beans, None, and Unknown"],
             ],
-            [3*cm, 3*cm, 10.5*cm],
+            [3.5*cm, 12*cm],
+        ),
+        note(
+            "&ldquo;French beans&rdquo; has its own colour swatch in the underlying "
+            "colour map, but it is not one of the 6 explicit values in this chart's "
+            "<code>stack_order</code>, and the grouping step maps it to <i>Other</i> "
+            "rather than its own bucket — a mismatch worth being aware of if you see "
+            "French beans incidents folded into the &ldquo;Other&rdquo; segment."
         ),
         p(
-            "<code>draw_custom_stacked_bar_chart</code> plots monthly incident "
-            "counts (y = <code>ts_month</code> count) stacked by the grouped crop. "
-            "Month order fixed January → December."
+            "<code>draw_bar_chart</code> (stacked) plots monthly incident counts "
+            "(y = count of <code>ts_month</code>) stacked by the grouped crop. Month "
+            "order fixed January&rarr;December."
         ),
+        p("Output: <b>total_incidents_recorded</b>"),
 
-        sp(4), h2("4.7 Total Damage Stacked Bar (Core AOO, Acres)"),
+        sp(4), h2("4.7 Total Damage Stacked Bar"),
         p(
-            "Same Core AOO filter and grouped-crop consolidation as Section 4.6, "
-            "but the y-axis is <code>Damage size</code> (acres) aggregated by count "
-            "— showing how much land area is affected per crop group per month. "
-            "The chart uses identical colours, stack order, and month ordering "
-            "as Section 4.6 so the two charts can be read side-by-side."
+            "Same Core AOO filter and grouped-crop consolidation as &sect;4.6, with the "
+            "y-axis set to <b>Damage size</b> (labelled &ldquo;Acres&rdquo;) instead of "
+            "an incident count."
         ),
+        note(
+            "Unlike the boxplot (&sect;4.2) and the crop-damage pie chart (&sect;4.5), this "
+            "chart's data source (<code>other_crops_rgba</code>) is <b>not</b> filtered "
+            "to <code>Measurement unit == \"Acre\"</code> — a <code>filter_acre_aoo</code> "
+            "task exists in <code>spec.yaml</code> for this purpose but its output is "
+            "never referenced downstream. If your EarthRanger data records damage in "
+            "mixed units, this chart's &ldquo;Acres&rdquo;-labelled axis may include "
+            "non-acre values."
+        ),
+        p("Output: <b>total_damage_recorded</b>"),
     ]
 
     # ── 5. Map Outputs ────────────────────────────────────────────────────────
     story += [
-        sp(4), h1("5. Map Outputs — Methodology"), hr(),
+        sp(4), h1("5. Map Outputs"), hr(),
+        p(
+            "All maps share the same base-tile stack (Hillshade + Street Map) and "
+            "the same land-use / boundary / fence static layers described in &sect;2.5, "
+            "framed by a shared view state (<code>envelope_gdf</code>, expansion 1.05; "
+            "<code>compute_view_state_from_gdf</code>, pitch 0, bearing 0, max zoom 15)."
+        ),
 
-        h2("5.1 Crop Raid Density Map"),
+        h2("5.1 Crop Raid Incident Density Map"),
         p(
-            "A grid-based density map showing where crop raid incidents cluster "
-            "across the landscape."
-        ),
-        h3("Density grid generation"),
-        p(
-            "<code>generate_density_grid</code> tessellates the area with "
-            "<b>2 000 m × 2 000 m</b> square cells "
-            "(<code>geometry_type: point</code>) and counts how many event "
-            "point geometries fall within each cell, producing a <code>density</code> "
-            "column."
-        ),
-        h3("Custom bin classification"),
-        p(
-            "Raw density counts are binned by <code>bin_column</code> into "
-            "5 fixed classes:"
+            "<code>create_meshgrid</code> tessellates the full event extent with a "
+            "2000 m grid (EPSG:3857); <code>calculate_feature_density</code> counts "
+            "point events per cell. Zero-density cells are dropped, then "
+            "<code>bin_column</code> classifies the remaining density values into 5 "
+            "fixed bins (not data-driven quantiles, so density maps stay comparable "
+            "across reporting periods):"
         ),
         make_table(
             [
-                ["Bin",  "Count range", "Colour",   "Hex"],
-                ["1",    "1 – 3",       "Yellow",   "#FFF7BC"],
-                ["2",    "4 – 6",       "Orange",   "#FD8D3C"],
-                ["3",    "7 – 9",       "Dark orange","#F03B20"],
-                ["4",    "10 – 12",     "Dark red",  "#BD0026"],
-                ["5",    "13+",         "Darkest red","#99000D"],
+                ["Bin",  "Count range", "Hex colour"],
+                ["1",    "1 – 3",       "#FFF7BC"],
+                ["2",    "4 – 6",       "#FD8D3C"],
+                ["3",    "7 – 9",       "#F03B20"],
+                ["4",    "10 – 12",     "#BD0026"],
+                ["5",    "13+",         "#99000D"],
             ],
-            [1.5*cm, 3*cm, 3.5*cm, 8.5*cm],
+            [1.5*cm, 3*cm, 12*cm],
         ),
-        p(
-            "Fixed breaks (rather than data-driven classification) are used so "
-            "that density maps across different time periods remain visually "
-            "comparable — a red cell always means ≥ 13 incidents regardless of "
-            "when the report is run."
-        ),
+        p("Output: <b>crop_raid_incident_density_map</b>"),
 
         sp(4), h2("5.2 Timing of Ranger Response Map"),
-        p(
-            "A scatter map coloured by <b>Time of ranger response</b>, showing "
-            "where rangers arrived before, during, or after raids."
-        ),
+        p("A scatter map (<code>create_scatterplot_layer</code>) coloured by <b>Time of ranger response</b>:"),
         make_table(
             [
-                ["Response timing",  "Colour",       "Hex"],
-                ["Before crop raid", "Light blue",   "#a6cee3"],
-                ["During crop raid", "Red",          "#ff0000"],
-                ["After crop raid",  "Golden yellow","#d5b60a"],
+                ["Response timing",  "Hex colour"],
+                ["Before crop raid", "#a6cee3"],
+                ["During crop raid", "#ff0000"],
+                ["After crop raid",  "#d5b60a"],
+                ["Unknown",          "#cfcfc4"],
             ],
-            [4*cm, 3.5*cm, 9*cm],
+            [5*cm, 11.5*cm],
         ),
-        p(
-            "Before rendering, geometric outliers are removed "
-            "(<code>exclude_geom_outliers</code>, Z-score threshold 3) and null "
-            "geometries are dropped (<code>drop_null_geometry</code>). "
-            "The scatter layer uses a fixed radius of 4 px, 75 % opacity, "
-            "with a black outline (get_line_width 0.25)."
-        ),
+        p("Radius 4 px, 75% opacity, black outline. Output: <b>timing_of_response_event_map</b>"),
 
         sp(4), h2("5.3 Species Responsible Map"),
-        p(
-            "A scatter map coloured by <b>Species responsible</b>, showing the "
-            "spatial distribution of raids by different wildlife species."
-        ),
+        p("A scatter map coloured by <b>Species responsible</b>:"),
         make_table(
             [
-                ["Species",  "Colour",          "Hex"],
-                ["Baboon",   "Mint green",      "#b3e2cd"],
-                ["Buffalo",  "Peach",           "#fdcdac"],
-                ["Eland",    "Lavender",        "#cbd5e8"],
-                ["Elephant", "Pink",            "#f4cae4"],
-                ["Gazelle",  "Light green",     "#e6f5c9"],
-                ["Giraffe",  "Light yellow",    "#fff2ae"],
-                ["Impala",   "Warm cream",      "#f1e2cc"],
-                ["Zebra",    "Light grey",      "#cccccc"],
-                ["Unknown",  "Neutral grey",    "#cfcfc4"],
+                ["Species",  "Hex colour"],
+                ["Baboon",   "#b3e2cd"],
+                ["Buffalo",  "#fdcdac"],
+                ["Eland",    "#cbd5e8"],
+                ["Elephant", "#f4cae4"],
+                ["Gazelle",  "#e6f5c9"],
+                ["Giraffe",  "#fff2ae"],
+                ["Impala",   "#f1e2cc"],
+                ["Zebra",    "#cccccc"],
+                ["Unknown",  "#cfcfc4"],
             ],
-            [3.5*cm, 3.5*cm, 9.5*cm],
+            [5*cm, 11.5*cm],
         ),
-        p(
-            "Same geometry cleaning pipeline as Section 5.2 (Z-score outlier "
-            "removal + null geometry drop). Identical scatter styling: radius 4 px, "
-            "opacity 75 %, black outline."
-        ),
+        p("Same styling as &sect;5.2. Output: <b>species_responsible_event_map</b>"),
 
-        sp(4), h2("5.4 Per-Month Crop Event Maps (mapvalues fan-out)"),
+        sp(4), h2("5.4 Per-Month Crop-Destroyed Maps (mapvalues fan-out)"),
         p(
-            "One interactive map is produced <i>per calendar month</i> "
-            "present in the data, coloured by <b>Main crop destroyed</b>. "
-            "Each of the 24 crop types has a distinct pastel colour "
-            "(matching the pie chart palette in Section 4.4)."
+            "One map is produced per calendar month present in the data, coloured by "
+            "<b>Main crop destroyed</b> using the same 25-value colour palette as "
+            "&sect;4.4. <code>split_by_month</code> (<code>split_groups</code> on "
+            "<code>ts_month_name</code>) partitions the enriched event DataFrame; the "
+            "colour assignment, scatterplot layer, layer combination, and view-state "
+            "computation are each re-run per month via <code>mapvalues</code>/<code>map</code>. "
+            "<code>column_first_unique_value</code> extracts the month name per "
+            "partition, and <code>groupbykey</code> zips it onto the rendered map so "
+            "each output file is suffixed with the correct month."
         ),
-        h3("Fan-out pipeline"),
-        p(
-            "<code>split_groups</code> partitions the enriched event DataFrame "
-            "by <code>ts_month_name</code> (the <code>R_NAME</code>-equivalent "
-            "grouper for this workflow). Each downstream task in the chain "
-            "(<code>assign_overall_crop_colors</code>, "
-            "<code>exclude_crop_outliers</code>, <code>remove_crop_geoms</code>, "
-            "<code>generate_crop_layer</code>, <code>combine_ambo_crop_layers</code>, "
-            "<code>crops_zoom_value</code>, <code>draw_crops_map</code>, "
-            "<code>persist_crop_map</code>, <code>convert_crop_map_png</code>) "
-            "processes one month per invocation via <code>mapvalues</code>."
-        ),
-        p(
-            "<code>dataframe_column_first_unique_str</code> extracts the month "
-            "name per split group. <code>zip_groupbykey</code> aligns the per-month "
-            "HTML with the corresponding month name so each output file is "
-            "suffixed correctly (e.g. <code>_January.html</code>)."
-        ),
-        p(
-            "Map view state (<code>view_state_deck_gdf</code>) is computed "
-            "per month from the cleaned events GeoDataFrame, zooming to the "
-            "extent of that month's incident locations."
-        ),
+        p("Outputs: <b>&lt;month&gt;</b> (one file per month, e.g. <code>January</code>, <code>February</code>, …)"),
     ]
 
     # ── 6. Summary Tables ─────────────────────────────────────────────────────
     story += [
         sp(4), h1("6. Summary Tables"), hr(),
         p(
-            "Six summary tables are persisted as GeoParquet files. "
-            "All use <code>crosstab_summary</code> or <code>aggregate_by</code> "
-            "to collapse the event DataFrame into a structured tabular form "
-            "suitable for insertion into the Word report."
+            "Six summary tables are persisted as GeoParquet, and each also gets a "
+            "matching HTML render (<code>draw_table</code>, sortable/filterable, "
+            "download enabled) for its dashboard table widget. All are built with "
+            "<code>ecoscope_workflows_ext_big_life.tasks.transformation.crosstab_summary</code> "
+            "or <code>aggregate_by</code>."
         ),
         make_table(
             [
-                ["Output file",                             "Dimensions",                                    "How computed"],
-                ["total_land_size_damaged_by_elephants",    "ts_month_name × Main crop destroyed (sum of Damage size in Acres)", "crosstab on elephant-only events with Acres filter; rows ordered January → December"],
-                ["average_elephant_group_size_over_time",  "ts_month_name → mean Number of animals",        "aggregate_by mean on Number of animals; converted to int; rows ordered January → December"],
-                ["timing_of_ranger_response",              "Time of ranger response × Crop raid location (count) + % strings", "crosstab count; rows ordered Before → During → After; add_pct_str appends percentage in brackets"],
-                ["total_area_damaged_by_crop_raid_location","Time of ranger response × Crop raid location (sum of Damage size in Acres) + % strings", "crosstab sum on Acres-filtered events; same ordering and pct string logic"],
-                ["total_land_damage_by_species_responsible","Species responsible × Crop raid location (incidents + acres, merged)", "Two crosstabs (count and sum); column suffixes _incidents and _acres added before left-merge on Species responsible"],
-                ["total_crops_damaged_by_species",          "Main crop destroyed × Crop raid location (incidents + acres, merged)", "Same two-crosstab merge approach as above but indexed by Main crop destroyed"],
+                ["Output file",                             "Dimensions",                                    "Scope"],
+                ["total_land_size_damaged_by_elephants",    "ts_month_name × Main crop destroyed, sum of Damage size", "Species responsible == Elephant, Measurement unit == Acre; rows ordered Jan→Dec"],
+                ["average_elephant_group_size_over_time",  "ts_month_name → mean Number of animals",        "Same elephant + Acre filter; rows ordered Jan→Dec"],
+                ["timing_of_ranger_response",              "Time of ranger response × Crop raid location, count + % strings", "All events; rows ordered Before→During→After"],
+                ["total_area_damaged_by_crop_raid_location","Time of ranger response × Crop raid location, sum of Damage size + % strings", "Measurement unit == Acre only; same row order"],
+                ["total_land_damage_by_species_responsible","Species responsible × Crop raid location, incidents + acres (merged)", "Incidents: all events; acres: Measurement unit == Acre only"],
+                ["total_crops_damaged_by_species",          "Main crop destroyed × Crop raid location, incidents + acres (merged)", "Same incidents/acres split as above, indexed by crop"],
             ],
-            [5.5*cm, 5*cm, 6*cm],
+            [5.5*cm, 5.5*cm, 5*cm],
         ),
         note(
-            "Percentage strings are added by <code>add_pct_str</code>, which "
-            "computes each row's share of the total column and appends it in "
-            "parentheses (e.g. <code>12 (42.9%)</code>). The total row and "
-            "index column are excluded from percentage calculation via "
-            "<code>exclude_rows</code>."
+            "Percentage strings are added by <code>add_pct_str</code>, which computes "
+            "each row's share of the total column and appends it in parentheses (e.g. "
+            "<code>12 (42.9%)</code>), excluding the Total row/column from its own "
+            "percentage calculation."
         ),
     ]
 
-    # ── 7. Word Report ────────────────────────────────────────────────────────
+    # ── 7. Word Report &amp; Dashboard ────────────────────────────────────────
     story += [
-        sp(4), h1("7. Word Report"), hr(),
+        sp(4), h1("7. Word Report &amp; Dashboard"), hr(),
 
         h2("7.1 Template Download"),
         p(
@@ -616,67 +604,61 @@ def build():
             "<code>overwrite_existing: false</code>)."
         ),
 
-        h2("7.2 Author Attribution"),
-        p(
-            "The currently authenticated EarthRanger user is looked up via "
-            "<code>get_current_user</code> and their display name resolved by "
-            "<code>get_user_full_name</code>. This name is passed as "
-            "<code>generated_by</code> to <code>generate_crop_raid_report</code>, "
-            "automatically attributing the report to the ranger who ran it."
-        ),
-
-        h2("7.3 Report Generation"),
-        p(
-            "<code>generate_crop_raid_report</code> populates the template with "
-            "all chart images (PNG, captured at 2× device scale factor) and "
-            "summary tables. Key parameters:"
-        ),
+        h2("7.2 Report Generation"),
+        p("<code>generate_crop_raid_report</code> populates the template with every chart, map, and table:"),
         make_table(
             [
-                ["Parameter",    "Value",                             "Description"],
-                ["template_path","downloaded .docx",                 "Big Life crop raid report template"],
-                ["output_dir",   "ECOSCOPE_WORKFLOWS_RESULTS",       "Output directory"],
-                ["filename",     "big_life_crop_raid_report.docx",   "Output filename"],
-                ["time_period",  "analysis time_range",              "Report period displayed in the header"],
-                ["generated_by", "EarthRanger user full name",       "Author field in the report"],
+                ["Parameter",    "Value"],
+                ["template_path","downloaded crop_raid_report_template.docx"],
+                ["output_dir",   "$ECOSCOPE_WORKFLOWS_RESULTS"],
+                ["filename",     "overall_report.docx"],
+                ["time_period",  "the workflow's current time range"],
+                ["generated_by", "\"Ecoscope\" (fixed string — not resolved from the EarthRanger user)"],
             ],
-            [3.5*cm, 5*cm, 8*cm],
+            [3.5*cm, 12*cm],
         ),
         p(
-            "Chart screenshots use a 5 ms tile-load wait "
-            "(all charts are self-contained HTML with no external tile requests). "
-            "Map screenshots use 40 000 ms to allow satellite tile layers to load "
-            "fully before capture."
+            "Chart screenshots use a 1 ms wait (self-contained HTML, batched across "
+            "7 charts at 1280&times;720). Map screenshots use 40 000 ms to allow tile "
+            "layers to load fully before capture."
+        ),
+
+        sp(4), h2("7.3 Dashboard"),
+        p(
+            "<code>gather_dashboard</code> registers <b>17 widgets</b> covering every "
+            "chart, map, and table: 4 map widgets (density, response timing, species, "
+            "and the per-month crop map — the last a merged multi-view widget built "
+            "with <code>merge_widget_views</code>), 7 chart widgets, and 6 table widgets."
         ),
     ]
 
     # ── 8. Output Files ───────────────────────────────────────────────────────
     story += [
         sp(4), h1("8. Output Files"), hr(),
-        p("All outputs are written to <code>ECOSCOPE_WORKFLOWS_RESULTS</code>."),
+        p("All outputs are written to <code>$ECOSCOPE_WORKFLOWS_RESULTS</code>."),
         make_table(
             [
-                ["File",                                         "Format",     "Content"],
-                ["time_bin_bar_chart.html / .png",               "HTML / PNG", "Time of day bar chart (3-hour bins)"],
-                ["damage_size_boxplot.html / .png",              "HTML / PNG", "Damage size boxplot by ranger response timing"],
-                ["monthly_crop_raid_location_incidents.html / .png","HTML / PNG","Monthly incident count stacked by crop raid location"],
-                ["proportion_crop_species_targeted.html / .png", "HTML / PNG", "Pie chart — crop species by incident count (Core AOO)"],
-                ["proportion_land_damaged.html / .png",          "HTML / PNG", "Pie chart — crop species by total acres damaged (Core AOO)"],
-                ["total_incidents_recorded.html / .png",         "HTML / PNG", "Monthly incidents stacked by grouped crop (Core AOO)"],
-                ["total_damage_recorded.html / .png",            "HTML / PNG", "Monthly damage in acres stacked by grouped crop (Core AOO)"],
-                ["crop_raid_incident_density_map.html / .png",   "HTML / PNG", "Density grid map of all crop raid events"],
-                ["timing_of_response_event_map.html / .png",     "HTML / PNG", "Scatter map coloured by ranger response timing"],
-                ["species_responsible_event_map.html / .png",    "HTML / PNG", "Scatter map coloured by species responsible"],
-                ["<month>.html / .png",                          "HTML / PNG", "Per-month crop destroyed scatter map"],
-                ["total_land_size_damaged_by_elephants.geoparquet","GeoParquet","Elephant damage by month × crop (acres)"],
-                ["average_elephant_group_size_over_time.geoparquet","GeoParquet","Mean elephant group size per month"],
-                ["timing_of_ranger_response.geoparquet",         "GeoParquet", "Ranger response timing crosstab with % strings"],
-                ["total_area_damaged_by_crop_raid_location.geoparquet","GeoParquet","Acres damaged by response timing × location"],
-                ["total_land_damage_by_species_responsible.geoparquet","GeoParquet","Species incidents + acres by crop raid location"],
-                ["total_crops_damaged_by_species.geoparquet",    "GeoParquet", "Crop incidents + acres by crop raid location"],
-                ["big_life_crop_raid_report.docx",               "Word",       "Final populated crop raid report"],
+                ["File",                                             "Format",     "Content"],
+                ["time_bin_bar_chart",                                "HTML + PNG", "Time-of-day bar chart (3-hour bins)"],
+                ["damage_size_boxplot",                               "HTML + PNG", "Damage size boxplot by ranger response timing"],
+                ["monthly_crop_raid_location_incidents",              "HTML + PNG", "Monthly incident count stacked by crop raid location"],
+                ["proportion_crop_species_targeted",                  "HTML + PNG", "Pie — crop species by incident count (Core AOO, damage-confirmed)"],
+                ["proportion_land_damaged",                           "HTML + PNG", "Pie — crop species by acres damaged (Core AOO, damage-confirmed)"],
+                ["total_incidents_recorded",                          "HTML + PNG", "Monthly incidents stacked by grouped crop (Core AOO)"],
+                ["total_damage_recorded",                             "HTML + PNG", "Monthly damage stacked by grouped crop (Core AOO; see &sect;4.7 note)"],
+                ["crop_raid_incident_density_map",                    "HTML + PNG", "Density grid of all crop raid events"],
+                ["timing_of_response_event_map",                      "HTML + PNG", "Scatter map coloured by ranger response timing"],
+                ["species_responsible_event_map",                     "HTML + PNG", "Scatter map coloured by species responsible"],
+                ["&lt;month&gt; (one per month)",                     "HTML + PNG", "Per-month crop-destroyed scatter map"],
+                ["total_land_size_damaged_by_elephants",              "GeoParquet + HTML", "Elephant damage by month × crop (acres)"],
+                ["average_elephant_group_size_over_time",             "GeoParquet + HTML", "Mean elephant group size per month"],
+                ["timing_of_ranger_response",                         "GeoParquet + HTML", "Ranger response timing crosstab with % strings"],
+                ["total_area_damaged_by_crop_raid_location",          "GeoParquet + HTML", "Acres damaged by response timing × location"],
+                ["total_land_damage_by_species_responsible",          "GeoParquet + HTML", "Species incidents + acres by crop raid location"],
+                ["total_crops_damaged_by_species",                    "GeoParquet + HTML", "Crop incidents + acres by crop raid location"],
+                ["overall_report.docx",                               "Word",       "Final populated crop raid report"],
             ],
-            [6.5*cm, 2.5*cm, 7.5*cm],
+            [6.5*cm, 3*cm, 7*cm],
         ),
     ]
 
@@ -686,48 +668,47 @@ def build():
 
         h2("9.1 Skip Conditions"),
         p(
-            "Every task carries two default skip conditions via "
-            "<code>task-instance-defaults</code>:"
+            "Every task carries the two default skip conditions via "
+            "<code>task-instance-defaults</code>: <b>any_is_empty_df</b> and "
+            "<b>any_dependency_skipped</b>. The event fetch, map-drawing, and "
+            "scatterplot-layer tasks additionally carry explicit "
+            "<code>skipif</code> blocks with both conditions."
         ),
-        bullet("<b>any_is_empty_df</b> — if any input DataFrame is empty, the task and all its dependants are skipped."),
-        bullet("<b>any_dependency_skipped</b> — if an upstream task was skipped, all downstream tasks that depend on it are also skipped."),
         p(
-            "Map-generation tasks (<code>draw_density_map</code>, "
-            "<code>draw_response_map</code>, <code>draw_species_map</code>, "
-            "<code>draw_crops_map</code>) and their geometry-cleaning predecessors "
-            "carry explicit <code>skipif</code> blocks with both conditions, "
-            "guarding against rendering failures from empty GeoDataFrames."
+            "The event fetch sets <code>raise_on_empty: true</code>, so a zero-event "
+            "period surfaces as an explicit error rather than an empty, silently "
+            "successful run."
         ),
 
         h2("9.2 mapvalues Fan-out (Per-Month Crop Maps)"),
         p(
-            "<code>split_groups</code> partitions the enriched event DataFrame "
-            "by the <code>ts_month_name</code> grouper. "
-            "Each task in the per-month pipeline uses <code>mapvalues</code> "
-            "to iterate over the resulting list, producing one output per month "
-            "present in the data. <code>zip_groupbykey</code> aligns "
-            "per-month map HTML with the month name string before "
-            "<code>persist_text</code>, so filenames are suffixed correctly."
+            "<code>split_by_month</code> (<code>split_groups</code>) partitions the "
+            "enriched event DataFrame by <code>ts_month_name</code>. Each task in the "
+            "per-month pipeline (colour assignment, scatterplot layer, layer "
+            "combination, view-state, map draw, persist, PNG conversion) re-runs once "
+            "per month via <code>mapvalues</code>/<code>map</code>, and "
+            "<code>groupbykey</code> zips the month name onto each rendered map before "
+            "persisting, so output filenames are suffixed correctly."
         ),
 
         h2("9.3 Screenshot Timing"),
         make_table(
             [
-                ["Task group",                   "wait_for_timeout", "max_concurrent_pages", "Reason"],
-                ["All chart screenshots",        "5 ms",            "1",                    "Charts are self-contained HTML; render immediately"],
-                ["Density / response / species map PNGs", "40 000 ms", "1",              "External tile layers require time to load"],
-                ["Per-month crop map PNGs",      "40 000 ms",       "1",                    "Same reason — tile layers"],
+                ["Task(s)",                       "wait_for_timeout", "Notes"],
+                ["convert_chart_html_png (7 charts, batched)", "1 ms",  "1280&times;720; static Plotly HTML renders essentially instantly"],
+                ["convert_density_map_png / convert_response_map_png / convert_species_map_png / convert_crop_map_png (×N months)", "40 000 ms", "Maps require full basemap tile rendering before capture"],
             ],
-            [5*cm, 3*cm, 3*cm, 5.5*cm],
+            [7*cm, 3*cm, 6.5*cm],
         ),
 
         h2("9.4 Core AOO Analysis Scope"),
         p(
-            "Several charts and all summary tables are scoped to <b>Core AOO</b> "
-            "events only (<code>filter_row_values: column='Crop raid location', "
-            "values=['Core AOO']</code>). This reflects the operational focus on "
-            "incidents within the core area of operation where Big Life rangers "
-            "have primary responsibility."
+            "Several charts (&sect;4.4&ndash;4.7) are scoped to <b>Core AOO</b> events only "
+            "(<code>filter_row_values: column=\"Crop raid location\", values=[\"Core AOO\"]</code>), "
+            "reflecting the operational focus on incidents within Big Life's core area "
+            "of operation. The summary tables in &sect;6 and the location/species/timing "
+            "charts in &sect;4.1&ndash;4.3 use the full dataset across all three location "
+            "categories."
         ),
     ]
 
@@ -736,22 +717,22 @@ def build():
         sp(4), h1("10. Software Versions"), hr(),
         make_table(
             [
-                ["Package",                         "Version",   "Role"],
-                ["ecoscope-workflows-core",         "0.22.17.*", "Core task library and workflow engine"],
-                ["ecoscope-workflows-ext-ecoscope", "0.22.17.*", "Ecoscope spatial tasks (events, density grid, maps)"],
-                ["ecoscope-workflows-ext-custom",   "0.0.39.*",  "Custom utility tasks (column transforms, geometry cleaning, crosstab)"],
-                ["ecoscope-workflows-ext-ste",      "0.0.17.*",  "STE tasks (time bin assignment, aggregate_by, custom stacked bar)"],
-                ["ecoscope-workflows-ext-mnc",      "0.0.7.*",   "MNC domain tasks"],
-                ["ecoscope-workflows-ext-mep",      "0.12.0.*",  "MEP tasks (crop raid report generation, pie and boxplot charts)"],
-                ["ecoscope-workflows-ext-ate",      "0.0.2.*",   "ATE tasks (process_events_details, filter_color_map)"],
-                ["ecoscope-workflows-ext-big-life",  "0.0.9.*",  "Big Life domain tasks (generate_crop_raid_report, user lookup)"],
+                ["Package",                          "Version",           "Channel"],
+                ["ecoscope-platform",                 "2.18.0",            "ecoscope-workflows"],
+                ["ecoscope-workflows-ext-custom",     "0.1.0rc14.*",       "ecoscope-workflows-custom"],
+                ["ecoscope-workflows-ext-ste",        "0.0.0rc1.*",        "ecoscope-workflows-custom"],
+                ["ecoscope-workflows-ext-mnc",        "1.0.0.*",           "ecoscope-workflows-custom"],
+                ["ecoscope-workflows-ext-wwf-virunga","0.0.0rc9.*",        "ecoscope-workflows-custom"],
+                ["ecoscope-workflows-ext-big-life",   "1.0.1.*",           "ecoscope-workflows-custom"],
+                ["pydeck",                             "0.9.2",             "conda-forge"],
+                ["opentelemetry-sdk",                  "&gt;=1.20.0,&lt;2.0.0", "conda-forge"],
             ],
-            [5.5*cm, 2.8*cm, 8.2*cm],
+            [6.5*cm, 4*cm, 6*cm],
         ),
         p(
-            "Packages are distributed via the <code>prefix.dev</code> conda channel "
-            "and pinned to patch-compatible versions (<code>.*</code> suffix). "
-            "The runtime environment is managed by <b>pixi</b>."
+            "Packages are distributed via the <code>prefix.dev</code> conda channels "
+            "and pinned to patch/prerelease-compatible versions (<code>.*</code> "
+            "suffix). The runtime environment is managed by <b>pixi</b>."
         ),
     ]
 

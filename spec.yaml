@@ -1,36 +1,36 @@
-id: bl_crop_raid_report
+id: crop_raid_report
 requirements:
-  - name: ecoscope-workflows-core
-    version: "0.22.17.*"
-    channel: https://repo.prefix.dev/ecoscope-workflows/
-
-  - name: ecoscope-workflows-ext-ecoscope
-    version: "0.22.17.*"
+  - name: ecoscope-platform
+    version: "2.18.0"
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-custom
-    version: "0.0.39.*"
+    version: "0.1.0rc14.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-ste
-    version: "0.0.17.*"
+    version: "0.0.0rc1.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc
-    version: "0.0.7.*"
+    version: "1.0.0.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
-  - name: ecoscope-workflows-ext-mep
-    version: "0.12.0.*"
-    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
-
-  - name: ecoscope-workflows-ext-ate
-    version: "0.0.2.*"
+  - name: ecoscope-workflows-ext-wwf-virunga
+    version: "0.0.0rc9.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-big-life
-    version: "0.0.9.*"
+    version: "1.0.1.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+
+  - name: pydeck
+    version: 0.9.2
+    channel: conda-forge
+
+  - name: opentelemetry-sdk
+    version: ">=1.20.0,<2.0.0"
+    channel: conda-forge
 
 task-instance-defaults:
   skipif:
@@ -77,9 +77,10 @@ workflow:
           opacity: 0.15
           max_zoom: 20
 
+  # Download Amboseli Layers and style them 
   - name: Download amboseli conservancy layers
     id: ambo_ranch_layers
-    task: fetch_and_persist_file
+    task: ecoscope_workflows_ext_ste.tasks.io.fetch_and_persist_file
     partial:
       url: https://www.dropbox.com/scl/fi/wrcp3pnnxqyrclzmbtt1r/amboseli_ranch_conservancies_layers.gpkg?rlkey=jfbqj1b1nwhijxbsy7b2v1d29&st=d7rbqdfe&dl=0
       output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
@@ -89,7 +90,7 @@ workflow:
   
   - name: Download amboseli ranch boundaries and electric fence
     id: ambo_bound_fence 
-    task: fetch_and_persist_file
+    task: ecoscope_workflows_ext_ste.tasks.io.fetch_and_persist_file
     partial: 
       url: https://www.dropbox.com/scl/fi/k6dgrmxmxeb3fe6glihwa/amboseli_group_ranch_boundaries_x_electric_fence.gpkg?rlkey=limtzffe88lr0iof5kf3b6uoy&st=rreho3tq&dl=0
       output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
@@ -97,9 +98,9 @@ workflow:
       retries: 3
       unzip: false
   
-  - name: Download Amboseli Conservancies
+  - name: Download ambo conservancies 
     id: ambo_conservancies 
-    task: fetch_and_persist_file
+    task: ecoscope_workflows_ext_ste.tasks.io.fetch_and_persist_file
     partial: 
       url: https://www.dropbox.com/scl/fi/blo1smf49buhwx24y4z60/amboseli_group_ranch_boundaries.gpkg?rlkey=w86emavj8ug7zab73ifbzg6jv&st=v8uptlb0&dl=0
       output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
@@ -131,155 +132,130 @@ workflow:
       layer: null 
       deserialize_json: false 
 
-  - name: Reproject Amboseli Conservancy Layers to WGS84
+  - name: Reproject gdf to 4326 for ambo layers 
     id: reproject_ambo_layers 
     task: reproject_gdf
     partial: 
       gdf: ${{ workflow.load_ambo_layers.return }}
       target_crs: "EPSG:4326"
 
-  - name: Reproject Amboseli Ranch Boundaries and Electric Fence to WGS84
+  - name: Reproject gdf to 4326 for ambo boundaries and electric fence 
     id: reproject_ambo_boundaries 
     task: reproject_gdf
     partial: 
       gdf: ${{ workflow.load_ambo_boundaries_fence.return }}
       target_crs: "EPSG:4326"
 
-  - name: Reproject Amboseli Conservancies to WGS84
+  - name: Reproject gdf to 4326 for ambo conservancies
     id: reproject_ambo_conservancies
     task: reproject_gdf
     partial: 
       gdf: ${{ workflow.load_ambo_conservancies.return }}
       target_crs: "EPSG:4326"
 
-  - name: Split Amboseli Layers by Land Use
-    id: split_ambo_layers_use 
-    task: split_gdf_by_column
-    partial: 
-      gdf: ${{ workflow.reproject_ambo_layers.return }}
-      column: land_use
+  - name: Apply colormap to amboseli land_use column
+    id: apply_ambo_color
+    task: apply_color_map
+    partial:
+      df: ${{ workflow.reproject_ambo_layers.return }}
+      input_column_name: land_use
+      output_column_name: land_use_color
+      colormap:
+        Rangeland: "#a39c91"
+        Rangeland and settlement: "#ffa07a"
+        Settlement and agriculture: "#2f4f4f"
+        Conservancies: "#8fbc8b"
+        National parks and reserves: "#4d6600"
 
-  - name: Annotate Amboseli Layers with Geometry Type
-    id: annotate_ambo_layers_gdf_dict 
-    task: annotate_gdf_dict_with_geom_type
-    partial:  
-      gdf_dict: ${{ workflow.split_ambo_layers_use.return }}
-
-  - name: Create styled layers from split amboseli layers 
-    id: create_ambo_layers_styled 
-    task: create_deckgl_layers_from_gdf_dict
-    partial: 
-      gdf_dict: ${{ workflow.annotate_ambo_layers_gdf_dict.return }}
-      styles: 
-        Rangeland:
-          extruded: false
-          get_fill_color: [163, 156, 145]
-          get_line_color: [163, 156, 145]
-          get_line_width: 0.85
-          stroked: true 
-          filled: true 
-          opacity: 0.75
-
-        Rangeland and settlement:
-          extruded: false
-          get_fill_color: [255, 160, 122]
-          get_line_color: [255, 160, 122]
-          get_line_width: 0.85
-          stroked: true 
-          filled: true 
-          opacity: 0.75
-
-        Settlement and agriculture:
-          extruded: false
-          get_fill_color: [47, 79, 79]
-          get_line_color: [47, 79, 79]
-          get_line_width: 0.85
-          stroked: true 
-          filled: true 
-          opacity: 0.75
-
-        Conservancies:
-          extruded: false
-          get_fill_color: [143, 188, 139]
-          get_line_color: [143, 188, 139]
-          get_line_width: 0.85
-          stroked: true 
-          filled: true 
-          opacity: 0.75
-
-        National parks and reserves:
-          extruded: false
-          get_fill_color: [77, 102, 0]
-          get_line_color: [77, 102, 0]
-          get_line_width: 0.85
-          stroked: true 
-          filled: true 
-          opacity: 0.75
-
-      legends: 
-        title: Map Layers 
-        values: 
-          - label: Conservancies 
+  - name: Create amboseli land_use layer
+    id: create_land_layer
+    task: ecoscope_workflows_ext_custom.tasks.results.create_geojson_layer
+    partial:
+      geodataframe: ${{ workflow.apply_ambo_color.return }}
+      data_url: null
+      layer_style:
+        filled: true
+        stroked: true
+        get_fill_color: land_use_color
+        get_line_color: land_use_color
+        get_line_width: 0.85
+        opacity: 0.75
+      legend:
+        title: Map Layers
+        values:
+          - label: Conservancies
             color: "#8fbc8b"
 
           - label: National park and reserves
             color: "#4d6600"
 
-          - label: Settlement and agriculture 
+          - label: Settlement and agriculture
             color: "#2f4f4f"
 
-          - label: Rangeland 
+          - label: Rangeland
             color: "#a39c91"
 
-          - label: Rangeland and settlement 
+          - label: Rangeland and settlement
             color: "#ffa07a"
 
-  - name: Split Amboseli Electric Fence and Boundaries by Land Use
-    id: split_ambo_boundaries
-    task: split_gdf_by_column
-    partial:  
-      gdf: ${{ workflow.reproject_ambo_boundaries.return }}
-      column: land_use 
-
-  - name: Annotate Amboseli Boundaries and Electric Fence with Geometry Type
-    id: annotate_ambo_boundaries 
-    task: annotate_gdf_dict_with_geom_type
-    partial: 
-      gdf_dict: ${{ workflow.split_ambo_boundaries.return }}
-
-  - name: Create styled layers from split amboseli boundaries and electric fence 
-    id: create_ambo_boundaries_styled 
-    task: create_deckgl_layers_from_gdf_dict
+  - name: Filter to ambo ranch boundaries only
+    id: filter_ambo_boundaries
+    task: filter_df
     partial:
-      gdf_dict: ${{ workflow.annotate_ambo_boundaries.return }}
-      styles: 
-        Ranch boundaries: 
-          extruded: false 
-          get_color: [0, 0, 0]
-          get_line_width: 0.95
-          get_width: 0.95
-          stroked: true 
-          filled: false
-          opacity: 0.55
+      df: ${{ workflow.reproject_ambo_boundaries.return }}
+      column_name: land_use
+      op: equal
+      value: Ranch boundaries
+      reset_index: true
 
-        Electric Fence:
-          extruded: false 
-          get_color: [45, 98, 177]
-          get_width: 5.5 
-          stroked: true 
-          filled: false 
-          opacity: 1.0
+  - name: Filter to ambo electric fence only
+    id: filter_ambo_fence
+    task: filter_df
+    partial:
+      df: ${{ workflow.reproject_ambo_boundaries.return }}
+      column_name: land_use
+      op: equal
+      value: Electric Fence
+      reset_index: true
 
-      legends: 
+  - name: Create ambo ranch boundaries layer
+    id: create_bound_layer
+    task: ecoscope_workflows_ext_custom.tasks.results.create_geojson_layer
+    partial:
+      geodataframe: ${{ workflow.filter_ambo_boundaries.return }}
+      data_url: null
+      layer_style:
+        filled: false
+        stroked: true
+        get_line_color: [0, 0, 0]
+        get_line_width: 0.95
+        opacity: 0.55
+      legend:
         title: ""
-        values: 
-          - label: Electric fence
-            color: "#2d62b1"
-
+        values:
           - label: Ranch boundaries
             color: "#000000"
 
-  - name: Retrieve current events 
+  - name: Create ambo electric fence layer
+    id: create_fence_layer
+    task: ecoscope_workflows_ext_custom.tasks.results.create_geojson_layer
+    partial:
+      geodataframe: ${{ workflow.filter_ambo_fence.return }}
+      data_url: null
+      layer_style:
+        filled: false
+        stroked: true
+        get_line_color: [45, 98, 177]
+        get_line_width: 5.5
+        opacity: 1.0
+      legend:
+        title: ""
+        values:
+          - label: Electric fence
+            color: "#2d62b1"
+ 
+ # Retrieve crop raid events
+  - name: Retrieve Crop Raid Events
     id: get_crop_events
     task: get_events
     skipif:
@@ -308,10 +284,11 @@ workflow:
       include_related_events: false
       include_null_geometry: false
       include_display_values: true
+      force_point_geometry: true 
   
   - name: Process crop raid events details
     id: process_crop_details
-    task: process_events_details 
+    task: ecoscope_workflows_ext_custom.tasks.io.process_events_details
     partial: 
       df: ${{ workflow.get_crop_events.return }}
       client: ${{ workflow.er_client_name.return }}
@@ -329,7 +306,7 @@ workflow:
 
   - name: Drop column prefix from events
     id: drop_crop_prefix 
-    task: drop_column_prefix
+    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_column_prefix
     partial: 
       df: ${{ workflow.normalize_crop_events.return }}
       prefix: event_details__
@@ -348,11 +325,11 @@ workflow:
         ]
       retain_columns: []
       rename_columns: {}
-      raise_if_not_found: true
+      raise_if_not_found: false
 
   - name: Convert columns to float 
     id: convert_col_float 
-    task: convert_to_float
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.convert_columns_to_float
     partial: 
       df: ${{ workflow.map_crop_columns.return }}
       columns: ["Damage size"]
@@ -362,27 +339,38 @@ workflow:
       
   - name: Convert columns to int 
     id: convert_col_int 
-    task: convert_to_int 
+    task: ecoscope_workflows_ext_mnc.tasks.transformation.convert_columns_to_int
     partial: 
       df: ${{ workflow.convert_col_float.return }}
       columns: ["Number of animals"]
       errors: "coerce"
-      fill_value: 0 
-      inplace: true 
-      
-  - name: Extract date attributes 
-    id: extract_date
-    task: extract_dt_attributes
+      fill_value: 0
+  
+  - name: Replace Missing Values in Events with Unknown 
+    id: replace_events_unknown
+    task: ecoscope_workflows_ext_mnc.tasks.transformation.fill_missing_values
     partial: 
       df: ${{ workflow.convert_col_int.return }}
-      time_column: "Date and time of raid"
-      attributes: ["month","month_name","hour"]
-      column_prefix: "ts_"
-      tz: null 
-      
+      subset: [
+        "Time of ranger response",
+        "Species responsible",
+        "Main crop destroyed",
+        ]
+      value: "Unknown"
+
+  - name: Extract date attributes 
+    id: extract_date
+    task: ecoscope_workflows_ext_custom.tasks.transformation.decompose_datetime
+    partial:
+      df: ${{ workflow.replace_events_unknown.return }}
+      datetime_column: "Date and time of raid"
+      components: ["month","month_name","hour"]
+      column_prefix: "ts"
+      remove_source: false
+
   - name: Assign custom time bins 
     id: assign_custom_bins 
-    task: assign_time_bins 
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.assign_time_bins 
     partial: 
       df: ${{ workflow.extract_date.return }}
       hours: 3 
@@ -391,7 +379,7 @@ workflow:
   # Draw time bin bar chart 
   - name: Aggregate events by time density_bins
     id: aggregate_time_bins 
-    task: aggregate_by 
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.aggregate_by 
     partial: 
       df: ${{ workflow.assign_custom_bins.return }}
       group_col: "time_bin"
@@ -400,13 +388,24 @@ workflow:
       agg_col_name: "Count"
       add_percent: false 
       sort: null
+      pct_col_name: "Percentage"
+      decimals: 1
 
   - name: Draw time bin bar chart 
     id: draw_time_bin_chart
-    task: draw_custom_bar_chart 
-    partial: 
+    task: ecoscope_workflows_ext_wwf_virunga.tasks.plot.draw_bar_chart
+    partial:
       dataframe: ${{ workflow.aggregate_time_bins.return }}
-      category: time_bin 
+      category: time_bin
+      mode: grouped
+      y_axis: null
+      stack_column: null
+      agg_function: null
+      stack_order: null
+      ascending: true
+      color_column: null
+      plot_style: null
+      overlay_opacity: 0.6
       category_order: [
         "12:01 – 15:00",
         "15:01 – 18:00",
@@ -417,41 +416,46 @@ workflow:
         "06:01 – 09:00",
         "09:01 – 12:00",
         ]
-      bar_chart_configs: 
+      bar_chart_configs:
         - column: Count
-          agg_func: sum 
-          label: Percent 
-          show_label: true 
-      
-      layout_kwargs:
-        font_size: 12 
+          agg_func: sum
+          label: Percent
+          show_label: true
+          style: 
+            marker_color: "#6495ed"
+            textposition: null 
+            texttemplate: null 
+      widget_id: null
+      layout_style:
+        bargap: 0.05 
+        bargroupgap: 0.05 
+        title: null 
+        title_x: 0.01
+        title_y: 0.95 
+        showlegend: false
+        font_size: 12
+        font_color: "#222222"
         plot_bgcolor: "#f5f5f5"
-        showlegend: false 
         xaxis:
           title: "Time of day"
         yaxis:
           title: "Number of incidents"
 
-  - name: Persist time bin bar chart as html text 
-    id: persist_time_bin_chart 
-    task: persist_text 
-    partial: 
+  - name: Persist time bin bar chart as html text
+    id: persist_time_bin_chart
+    task: persist_text
+    partial:
       text: ${{ workflow.draw_time_bin_chart.return }}
       filename: "time_bin_bar_chart.html"
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filename_suffix: null 
+      filename_suffix: null # png
 
-  - name: Convert time bins chart to png
-    id: time_bin_png
-    task: html_to_png
+  - name: Create time of day incidents chart widget
+    id: widget_time_bin_chart
+    task: create_plot_widget_single_view
     partial:
-      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      html_path: ${{ workflow.persist_time_bin_chart.return }}
-      config:
-        full_page: false
-        device_scale_factor: 2.0
-        wait_for_timeout: 5
-        max_concurrent_pages: 1
+      title: "Time of Day of Incidents"
+      data: ${{ workflow.persist_time_bin_chart.return }}
 
   - name: Filter df to only acres 
     id: filter_overall_acres 
@@ -463,7 +467,7 @@ workflow:
   
   - name: Draw boxplot of damage size 
     id: draw_damage_boxplot 
-    task: draw_boxplot 
+    task: ecoscope_workflows_ext_big_life.tasks.results.draw_boxplot
     partial:
       dataframe: ${{ workflow.filter_overall_acres.return }}
       y_column: "Damage size"
@@ -479,31 +483,27 @@ workflow:
         bargap: 0.1 
         font_size: 12 
         font_color: "#222222"
+      widget_id: null
 
   - name: Persist damage boxplot as html text
     id: persist_damage_boxplot
-    task: persist_text  
-    partial: 
+    task: persist_text
+    partial:
       text: ${{ workflow.draw_damage_boxplot.return }}
       filename: "damage_size_boxplot.html"
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filename_suffix: null
-  
-  - name: Convert boxplot chart to png
-    id: boxplot_png
-    task: html_to_png
-    partial:
-      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      html_path: ${{ workflow.persist_damage_boxplot.return }}
-      config:
-        full_page: false
-        device_scale_factor: 2.0
-        wait_for_timeout: 5
-        max_concurrent_pages: 1
+      filename_suffix: null # png
 
+  - name: Create damage size boxplot widget
+    id: widget_damage_boxplot
+    task: create_plot_widget_single_view
+    partial:
+      title: "Damage Size by Ranger Response Time"
+      data: ${{ workflow.persist_damage_boxplot.return }}
+  
   - name: Map column values to assign crop raid location colors 
     id: assign_column_colors
-    task: map_color_column_value
+    task: map_column_value
     partial:
       df: ${{ workflow.assign_custom_bins.return }}
       col: "Crop raid location"
@@ -513,17 +513,32 @@ workflow:
         "Outside AOO": "#fdbf6f"
         "Unknown": "#cfcfc4"
       new_col: "crop_raid_location_colors"
-  
+      default: "#cfcfc4"
+      keep_unmapped: false
+
+  - name: Add rgba column from crop_raid_location_colors
+    id: crop_raid_loc_rgba 
+    task: add_rgba_columns_from_hex
+    partial: 
+      df: ${{ workflow.assign_column_colors.return }}
+      columns: [
+        "crop_raid_location_colors",
+        
+        ]
+
   - name: Draw custom stacked bar chart of crop raid locations over time 
     id: draw_month_raid_locs
-    task: draw_custom_stacked_bar_chart 
-    partial: 
-      dataframe: ${{ workflow.assign_column_colors.return }}
-      x_axis: "ts_month_name"
+    task: ecoscope_workflows_ext_wwf_virunga.tasks.plot.draw_bar_chart
+    partial:
+      dataframe: ${{ workflow.crop_raid_loc_rgba.return }}
+      category: "ts_month_name"
+      mode: stacked
       y_axis: "ts_month"
       stack_column: "Crop raid location"
       agg_function: "count"
-      color_column: "crop_raid_location_colors"
+      ascending: true
+      color_column: "crop_raid_location_colors_rgba"
+      bar_chart_configs: null
       stack_order:  [
         "Core AOO",
         "Non-core AOO",
@@ -543,20 +558,24 @@ workflow:
           "November",
           "December"
       ]
+      overlay_opacity: 0.6
       plot_style: 
         xperiodalignment: "middle"
-      
-      layout_style: 
-        font_size: 12 
+      widget_id: null
+      layout_style:
+        bargap: 0.05 
+        bargroupgap: 0.05 
+        title: null 
+        title_x: 0.01
+        title_y: 0.95 
+        showlegend: true 
+        font_size: 12
         font_color: "#222222"
         plot_bgcolor: "#f5f5f5"
-        title_x: 0.5
         xaxis:
           title: "Month"
         yaxis:
           title: "Number of incidents"
-        showlegend: true
-        bargap: 0.1
 
   - name: Persist custom stacked bar chart as html text
     id: persist_month_raid_locs
@@ -567,23 +586,19 @@ workflow:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filename_suffix: null
 
-  - name: Convert month raid chart to png
-    id: month_stacked_locs_png
-    task: html_to_png
+  - name: Create monthly crop raid location chart widget
+    id: widget_month_raid_locs
+    task: create_plot_widget_single_view
     partial:
-      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      html_path: ${{ workflow.persist_month_raid_locs.return }}
-      config:
-        full_page: false
-        device_scale_factor: 2.0
-        wait_for_timeout: 5
-        max_concurrent_pages: 1
+      title: "Monthly Crop Raid Location Incidents"
+      data: ${{ workflow.persist_month_raid_locs.return }}
+
 
   - name: Filter core area and where damage occured 
     id: filter_core_aoo 
     task: filter_row_values
     partial:
-      df: ${{ workflow.assign_column_colors.return }}
+      df: ${{ workflow.crop_raid_loc_rgba.return }}
       column: "Crop raid location"
       values: ["Core AOO"]
   
@@ -595,21 +610,21 @@ workflow:
       column: "Damage caused"
       values: ["Yes"]
 
-  - name: Aggregate total land damage in core aoo 
-    id: aggregate_damage_core_aoo
-    task: aggregate_by
-    partial:
-      df: ${{ workflow.filter_damage_core_aoo.return }}
-      group_col: "ts_month_name"
-      agg_col: "Damage size"
-      agg_func: "sum"
-      agg_col_name: "Total Damage Size"
-      add_percent: true 
-      sort: null
+  # - name: Aggregate total land damage in core aoo 
+  #   id: aggregate_damage_core_aoo
+  #   task: ecoscope_workflows_ext_big_life.tasks.transformation.aggregate_by
+  #   partial:
+  #     df: ${{ workflow.filter_damage_core_aoo.return }}
+  #     group_col: "ts_month_name"
+  #     agg_col: "Damage size"
+  #     agg_func: "sum"
+  #     agg_col_name: "Total Damage Size"
+  #     add_percent: true 
+  #     sort: null
   
   - name: Map color columns to assign to crop destroyed 
     id: assign_crop_colors
-    task: map_color_column_value
+    task: map_column_value
     partial:
       df: ${{ workflow.filter_damage_core_aoo.return }}
       col: "Main crop destroyed"
@@ -638,24 +653,39 @@ workflow:
         "Tomatoes":      "#fcd5ce"
         "Watermelon":    "#d4ede8"
         "Other":         "#e8e8e8"
-        "None":          "#ffffff"
+        "None":          "#cfcfc4"
+        "Unknown": "#cfcfc4"
       new_col: "crop_destroyed_colors"
-  
-  - name: Get crop destroyed incidents over time 
-    id: aggregate_crop_destroyed 
-    task: aggregate_by 
+      default: "#e8e8e8"
+      keep_unmapped: false
+
+  - name: Add rgba column from crop_destroyed_colors
+    id: crop_destroyed_rgba
+    task: add_rgba_columns_from_hex
     partial: 
       df: ${{ workflow.assign_crop_colors.return }}
+      columns: [
+        "crop_destroyed_colors",
+        
+        ]
+
+  - name: Get crop destroyed incidents over time
+    id: aggregate_crop_destroyed 
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.aggregate_by 
+    partial: 
+      df: ${{ workflow.crop_destroyed_rgba.return }}
       group_col: "Main crop destroyed"
       agg_col: null
       agg_func: "count"
       agg_col_name: "Count"
       add_percent: true
       sort: null
+      pct_col_name: Percentage 
+      decimals: 1
 
   - name: Map crop color values on aggregated df 
     id: map_crop_colors_agg
-    task: map_color_column_value
+    task: map_column_value
     partial:
       df: ${{ workflow.aggregate_crop_destroyed.return }}
       col: "Main crop destroyed"
@@ -684,20 +714,33 @@ workflow:
         "Tomatoes":      "#fcd5ce"
         "Watermelon":    "#d4ede8"
         "Other":         "#e8e8e8"
-        "None":          "#ffffff"
+        "None":          "#cfcfc4"
+        "Unknown": "#cfcfc4"
       new_col: "crop_destroyed_colors"
+      default: "#e8e8e8"
+      keep_unmapped: false
 
-  - name: Draw pie chart of crop destroyed 
+  - name: Add rgba column from crop_destroyed_colors
+    id: crop_destroyed_agg_rgba
+    task: add_rgba_columns_from_hex
+    partial:
+      df: ${{ workflow.map_crop_colors_agg.return }}
+      columns: [
+        "crop_destroyed_colors",
+
+        ]
+
+  - name: Draw pie chart of crop destroyed
     id: draw_crop_destroyed_pie
-    task: draw_pie_chart 
-    partial: 
-      dataframe: ${{ workflow.map_crop_colors_agg.return }}
+    task: ecoscope_workflows_ext_wwf_virunga.tasks.plot._plot.draw_pie_chart
+    partial:
+      dataframe: ${{ workflow.crop_destroyed_agg_rgba.return }}
       label_column: "Main crop destroyed"
       value_column: "Count"
-      color_column: "crop_destroyed_colors"
+      color_column: "crop_destroyed_colors_rgba"
       plot_style:
         textinfo: "percent"
-      
+      widget_id: null
       layout_style:
         showlegend: true
         font_size: 12 
@@ -712,17 +755,13 @@ workflow:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filename_suffix: null
 
-  - name: Convert crops destroyed pie chart to png
-    id: crops_destroyed_pie_png
-    task: html_to_png
+  - name: Create crop species targeted pie chart widget
+    id: widget_crop_destroyed_pie
+    task: create_plot_widget_single_view
     partial:
-      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      html_path: ${{ workflow.persist_crop_destroyed_pie.return }}
-      config:
-        full_page: false
-        device_scale_factor: 2.0
-        wait_for_timeout: 5
-        max_concurrent_pages: 1
+      title: "Proportion of Crop Species Targeted"
+      data: ${{ workflow.persist_crop_destroyed_pie.return }}
+
 
   - name: Filter acres from core aoo where damage occured 
     id: filter_core_acres_damage 
@@ -734,7 +773,7 @@ workflow:
   
   - name: Aggregate main crop destroyed by damage size  
     id: aggregate_crop_damage
-    task: aggregate_by
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.aggregate_by
     partial: 
       df: ${{ workflow.filter_core_acres_damage.return }}
       group_col: "Main crop destroyed"
@@ -743,10 +782,12 @@ workflow:
       agg_col_name: "Total Damage Size"
       add_percent: true
       sort: null
-  
+      pct_col_name: "Percentage"
+      decimals: 1
+
   - name: Map crop colors to damage size aggregated df
     id: map_crop_colors_damage_agg
-    task: map_color_column_value
+    task: map_column_value
     partial:
       df: ${{ workflow.aggregate_crop_damage.return }}
       col: "Main crop destroyed"
@@ -775,20 +816,33 @@ workflow:
         "Tomatoes":      "#fcd5ce"
         "Watermelon":    "#d4ede8"
         "Other":         "#e8e8e8"
-        "None":          "#ffffff"
+        "None":          "#cfcfc4"
+        "Unknown": "#cfcfc4"
       new_col: "crop_destroyed_colors"
+      default: "#e8e8e8"
+      keep_unmapped: false
+
+  - name: Add rgba column from aoo crop_destroyed_colors
+    id: aoo_crop_destroyed_rgba 
+    task: add_rgba_columns_from_hex
+    partial: 
+      df: ${{ workflow.map_crop_colors_damage_agg.return }}
+      columns: [
+        "crop_destroyed_colors",
+        
+        ]
 
   - name: Draw pie chart of crop destroyed by damage size
     id: draw_crop_destroyed_by_size_pie
-    task: draw_pie_chart 
+    task: ecoscope_workflows_ext_wwf_virunga.tasks.plot._plot.draw_pie_chart
     partial: 
-      dataframe: ${{ workflow.map_crop_colors_damage_agg.return }}
+      dataframe: ${{ workflow.aoo_crop_destroyed_rgba.return }}
       label_column: "Main crop destroyed"
       value_column: "Total Damage Size"
-      color_column: "crop_destroyed_colors"
+      color_column: "crop_destroyed_colors_rgba"
       plot_style:
         textinfo: "percent"
-      
+      widget_id: null
       layout_style:
         showlegend: true
         font_size: 12 
@@ -803,21 +857,16 @@ workflow:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filename_suffix: null
 
-  - name: Convert crops destroyed damage pie chart to png
-    id: crops_damage_pie_png
-    task: html_to_png
+  - name: Create land damaged by crop pie chart widget
+    id: widget_crop_damage_pie
+    task: create_plot_widget_single_view
     partial:
-      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      html_path: ${{ workflow.persist_crop_damage_pie.return }}
-      config:
-        full_page: false
-        device_scale_factor: 2.0
-        wait_for_timeout: 5
-        max_concurrent_pages: 1
+      title: "Proportion of Land Damaged by Crop"
+      data: ${{ workflow.persist_crop_damage_pie.return }}
 
   - name: Group other crop types to others 
     id: group_other_crops
-    task: filter_color_map
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.filter_color_map
     partial:
       color_map: 
         "Avocado":       "#b3e2cd"
@@ -844,7 +893,8 @@ workflow:
         "Tomatoes":      "#fcd5ce"
         "Watermelon":    "#d4ede8"
         "Other":         "#e8e8e8"
-        "None":          "#ffffff"
+        "None":          "#cfcfc4"
+        "Unknown": "#cfcfc4"
       keys: [
         "Maize", 
         "Tomatoes", 
@@ -855,6 +905,7 @@ workflow:
         ]
       fallback_key: "Other"
       fallback_color: "#fee8c8"
+      strict: false
   
   - name: Map other column values to core aoo 
     id: map_core_aoo_other
@@ -888,27 +939,45 @@ workflow:
         "Watermelon":    "Watermelon"
         "Other":         "Other"
         "None":          "Other"
+        "Unknown": "Other"
       new_col: "other_crops_destroyed"
+      keep_unmapped: false
+      default: "Other"
 
   - name: Map other colors 
     id: map_other_colors
-    task: map_color_column_value
+    task: map_column_value
     partial: 
       df: ${{ workflow.map_core_aoo_other.return }}
       col: "other_crops_destroyed"
       mapping: ${{ workflow.group_other_crops.return }}
       new_col: "other_crops_destroyed_colors"
+      default: "#fee8c8"
+      keep_unmapped: false
+
+  - name: Add rgba column from other_crops_destroyed_colors
+    id: other_crops_rgba 
+    task: add_rgba_columns_from_hex
+    partial: 
+      df: ${{ workflow.map_other_colors.return }}
+      columns: [
+        "other_crops_destroyed_colors",
+        
+        ]
 
   - name: Draw custom stacked bar chart of others over time 
     id: draw_monthly_other_bar 
-    task: draw_custom_stacked_bar_chart 
-    partial: 
-      dataframe: ${{ workflow.map_other_colors.return }}
-      x_axis: "ts_month_name"
+    task: ecoscope_workflows_ext_wwf_virunga.tasks.plot.draw_bar_chart
+    partial:
+      dataframe: ${{ workflow.other_crops_rgba.return }}
+      category: "ts_month_name"
+      mode: stacked
       y_axis: "ts_month"
       stack_column: "other_crops_destroyed"
-      agg_function: "count" 
-      color_column: "other_crops_destroyed_colors"
+      agg_function: "count"
+      ascending: true
+      color_column: "other_crops_destroyed_colors_rgba"
+      bar_chart_configs: null
       stack_order: [
         "Beans",
         "Maize",
@@ -917,6 +986,7 @@ workflow:
         "Watermelon",
         "Other"
       ]
+      overlay_opacity: 0.6
       category_order: [
         "January", 
         "February",
@@ -933,38 +1003,38 @@ workflow:
         ]
       plot_style: 
         xperiodalignment: middle 
+      widget_id: null
       layout_style: 
-        font_size: 12 
+        bargap: 0.05 
+        bargroupgap: 0.05 
+        title: null 
+        title_x: 0.01
+        title_y: 0.95 
+        showlegend: true 
+        font_size: 12
         font_color: "#222222"
         plot_bgcolor: "#f5f5f5"
-        title_x: 0.5 
         xaxis: 
           title: Month 
         yaxis: 
           title: Number of incidents 
-        showlegend: true 
-        bargap: 0.1 
-    
-  - name: Persist bar chart 
+
+  - name: Persist bar chart
     id: persist_monthly_other
-    task: persist_text 
-    partial: 
+    task: persist_text
+    partial:
       text: ${{ workflow.draw_monthly_other_bar.return }}
       filename: "total_incidents_recorded.html"
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filename_suffix: null 
+      filename_suffix: null
 
-  - name: Convert monthly other chart to png
-    id: monthly_other_png
-    task: html_to_png
+  - name: Create total incidents recorded chart widget
+    id: widget_monthly_other
+    task: create_plot_widget_single_view
     partial:
-      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      html_path: ${{ workflow.persist_monthly_other.return }}
-      config:
-        full_page: false
-        device_scale_factor: 2.0
-        wait_for_timeout: 5
-        max_concurrent_pages: 1
+      title: "Total Incidents Recorded"
+      data: ${{ workflow.persist_monthly_other.return }}
+
 
   - name: Filter row values to get Acres from Core AOO 
     id: filter_acre_aoo
@@ -976,14 +1046,19 @@ workflow:
 
   - name: Draw damage done on core aoo over time 
     id: draw_crop_acre_bar
-    task: draw_custom_stacked_bar_chart 
-    partial: 
-      dataframe: ${{ workflow.map_other_colors.return }}
-      x_axis: "ts_month_name"
+    task: ecoscope_workflows_ext_wwf_virunga.tasks.plot.draw_bar_chart
+    partial:
+      dataframe: ${{ workflow.other_crops_rgba.return }}
+      category: "ts_month_name"
+      mode: stacked
       y_axis: "Damage size"
       stack_column: "other_crops_destroyed"
       agg_function: "count"
-      color_column: "other_crops_destroyed_colors"
+      ascending: true
+      color_column: "other_crops_destroyed_colors_rgba"
+      bar_chart_configs: null
+      overlay_opacity: 0.6
+      widget_id: null
       stack_order:  [
         "Beans",
         "Maize",
@@ -1030,17 +1105,12 @@ workflow:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filename_suffix: null
 
-  - name: Convert custom stacked bar chart to png
-    id: month_raid_locs_png
-    task: html_to_png
+  - name: Create total damage recorded chart widget
+    id: widget_total_damage
+    task: create_plot_widget_single_view
     partial:
-      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      html_path: ${{ workflow.persist_total_damage.return }}
-      config:
-        full_page: false
-        device_scale_factor: 2.0
-        wait_for_timeout: 5
-        max_concurrent_pages: 1
+      title: "Total Damage Recorded"
+      data: ${{ workflow.persist_total_damage.return }}
 
   # generating tables
   - name: Filter elephant events from overall events
@@ -1061,7 +1131,7 @@ workflow:
 
   - name: Generate crosstab summary for elephants damaged over time 
     id: elephant_acre_damaged 
-    task: crosstab_summary
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.crosstab_summary
     partial:  
       data: ${{ workflow.elephant_acres.return }}
       index_col: "ts_month_name"
@@ -1071,10 +1141,13 @@ workflow:
       margins: true 
       margins_name: "Total amount of damage(Acres)"
       reset_index: true
+      fill_value: 0 
+      normalize: false
+      dropna: false
 
   - name: Order row values for elephant acres 
     id: ordered_ele_acre
-    task: order_row_values
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.order_row_values
     partial: 
       df: ${{ workflow.elephant_acre_damaged.return }}
       target_col: "ts_month_name"
@@ -1100,18 +1173,47 @@ workflow:
       df: ${{ workflow.ordered_ele_acre.return }}
       columns: ["ts_month_name"]
 
-  - name: Persist elephant acres table as parquet 
-    id: persist_ele_acre_df 
-    task: persist_df 
-    partial: 
+  - name: Persist elephant acres table as parquet
+    id: persist_ele_acre_df
+    task: persist_df
+    partial:
       df: ${{ workflow.convert_month_str.return }}
       filename: "total_land_size_damaged_by_elephants"
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: "geoparquet"
 
+  - name: Draw elephant acres damaged table
+    id: ele_acre_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.convert_month_str.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: true
+        hide_header: false
+      widget_id: "Total Land Size Damaged by Elephants"
+
+  - name: Persist elephant acres damaged table as html text
+    id: ele_acre_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.ele_acre_table_html.return }}
+      filename: "total_land_size_damaged_by_elephants_table.html"
+      filename_suffix: null
+
+  - name: Create elephant acres damaged table widget
+    id: widget_ele_acre_table
+    task: create_table_widget_single_view
+    partial:
+      title: "Total Land Size Damaged by Elephants"
+      data: ${{ workflow.ele_acre_table_html_url.return }}
+
   - name: Aggregate overall elephant events 
     id: aggregate_overall_ele
-    task: aggregate_by 
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.aggregate_by 
     partial: 
       df: ${{ workflow.elephant_acres.return }}
       group_col: "ts_month_name"
@@ -1120,10 +1222,12 @@ workflow:
       agg_col_name: "group_size"
       add_percent: false 
       sort: null
+      pct_col_name: "Percentage"
+      decimals: 1
   
   - name: Order overall mean elephant values 
     id: order_overall_ele
-    task: order_row_values
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.order_row_values
     partial: 
       df: ${{ workflow.aggregate_overall_ele.return }}
       target_col: "ts_month_name"
@@ -1142,34 +1246,65 @@ workflow:
           "December"
       ]
   
-  # - name: convert overall ele to int 
-  #   id: convert_ele_int 
-  #   task: convert_column_values_to_numeric
-  #   partial: 
-  #     df: ${{ workflow.order_overall_ele.return }}
-  #     columns: ["Damage size"]
+  - name: convert overall ele to int 
+    id: convert_ele_int 
+    task: ecoscope_workflows_ext_mnc.tasks.transformation.convert_columns_to_int 
+    partial: 
+      df: ${{ workflow.order_overall_ele.return }}
+      columns: ["Damage size"]
+      errors: "coerce"
+      fill_value: 0
 
   - name: Convert overall ele month name to string 
     id: convert_ele_month_str
     task: convert_column_values_to_string 
     partial: 
-      df: ${{ workflow.order_overall_ele.return }} 
-      #${{ workflow.convert_ele_int.return }}
+      #df: ${{ workflow.order_overall_ele.return }} 
+      df: ${{ workflow.convert_ele_int.return }}
       columns: ["ts_month_name"]
 
-  - name: Persist overall ele as geoparquet 
+  - name: Persist overall ele as geoparquet
     id: persist_overall_ele
-    task: persist_df 
-    partial: 
+    task: persist_df
+    partial:
       df: ${{ workflow.convert_ele_month_str.return }}
       filename: "average_elephant_group_size_over_time"
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: "geoparquet"
 
+  - name: Draw average elephant group size table
+    id: overall_ele_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.convert_ele_month_str.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: true
+        hide_header: false
+      widget_id: "Average Elephant Group Size Over Time"
+
+  - name: Persist average elephant group size table as html text
+    id: overall_ele_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.overall_ele_table_html.return }}
+      filename: "average_elephant_group_size_over_time_table.html"
+      filename_suffix: null
+
+  - name: Create average elephant group size table widget
+    id: widget_overall_ele_table
+    task: create_table_widget_single_view
+    partial:
+      title: "Average Elephant Group Size Over Time"
+      data: ${{ workflow.overall_ele_table_html_url.return }}
+
   # ranger response timing
   - name: Ranger response to crop raid 
     id: ranger_response
-    task: crosstab_summary
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.crosstab_summary
     partial:
       data: ${{ workflow.assign_custom_bins.return }}
       index_col: "Time of ranger response"
@@ -1179,10 +1314,13 @@ workflow:
       margins: true 
       margins_name: Total Incidents
       reset_index: true
+      fill_value: 0 
+      normalize: false
+      dropna: false
 
   - name: Order ranger response 
     id: order_ranger_response 
-    task: order_row_values 
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.order_row_values 
     partial: 
       df: ${{ workflow.ranger_response.return }}
       target_col: "Time of ranger response"
@@ -1194,13 +1332,14 @@ workflow:
   
   - name: Add percent strings to ranger response 
     id: add_ranger_pct 
-    task: add_pct_str
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.add_pct_str
     partial: 
       df: ${{ workflow.order_ranger_response.return }}
       total_col: Total Incidents 
       index_col: "Time of ranger response"
       exclude_rows: ["Total Incidents"]
       decimals: 1
+      na_repr: ""
 
   - name: Convert ranger response to string 
     id: convert_ranger_str
@@ -1216,18 +1355,47 @@ workflow:
         ]
   
   - name: Persist ranger response as geoparquet
-    id: persist_ranger_df 
-    task: persist_df 
-    partial:  
+    id: persist_ranger_df
+    task: persist_df
+    partial:
       df: ${{ workflow.convert_ranger_str.return }}
       filename: "timing_of_ranger_response"
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: "geoparquet"
 
+  - name: Draw timing of ranger response table
+    id: ranger_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.convert_ranger_str.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: true
+        hide_header: false
+      widget_id: "Timing of Ranger Response"
+
+  - name: Persist timing of ranger response table as html text
+    id: ranger_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.ranger_table_html.return }}
+      filename: "timing_of_ranger_response_table.html"
+      filename_suffix: null
+
+  - name: Create timing of ranger response table widget
+    id: widget_ranger_table
+    task: create_table_widget_single_view
+    partial:
+      title: "Timing of Ranger Response"
+      data: ${{ workflow.ranger_table_html_url.return }}
+
   # total area damaged 
   - name: Calculate total area damaged 
     id: total_area_damaged 
-    task: crosstab_summary
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.crosstab_summary
     partial: 
       data: ${{ workflow.filter_overall_acres.return }}
       index_col: "Time of ranger response"
@@ -1237,10 +1405,13 @@ workflow:
       margins: true 
       margins_name: "Total Acres Damaged"
       reset_index: true
+      fill_value: 0 
+      normalize: false
+      dropna: false
   
   - name: Order total acres row values 
     id: order_total_acres
-    task: order_row_values
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.order_row_values
     partial: 
       df: ${{ workflow.total_area_damaged.return }}
       target_col: "Time of ranger response"
@@ -1252,13 +1423,14 @@ workflow:
 
   - name: Add percent str to total acres damaged 
     id: add_total_acres_pct 
-    task: add_pct_str
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.add_pct_str
     partial: 
       df: ${{ workflow.order_total_acres.return }}
       total_col: "Total Acres Damaged"
       index_col: "Time of ranger response"
       exclude_rows: ["Total Acres Damaged"]
       decimals: 1 
+      na_repr: ""
   
   - name: Convert total acres damaged to string 
     id: convert_total_acres_str
@@ -1275,18 +1447,47 @@ workflow:
 
   
   - name: Persist total acres df as parquet
-    id: persist_total_df 
-    task: persist_df 
+    id: persist_total_df
+    task: persist_df
     partial:
       df: ${{ workflow.convert_total_acres_str.return }}
       filename: "total_area_damaged_by_crop_raid_location"
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: "geoparquet"
+
+  - name: Draw total area damaged table
+    id: total_acres_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.convert_total_acres_str.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: true
+        hide_header: false
+      widget_id: "Total Area Damaged by Crop Raid Location"
+
+  - name: Persist total area damaged table as html text
+    id: total_acres_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.total_acres_table_html.return }}
+      filename: "total_area_damaged_by_crop_raid_location_table.html"
+      filename_suffix: null
+
+  - name: Create total area damaged table widget
+    id: widget_total_acres_table
+    task: create_table_widget_single_view
+    partial:
+      title: "Total Area Damaged by Crop Raid Location"
+      data: ${{ workflow.total_acres_table_html_url.return }}
   
   # Species damage acres 
   - name: Species damage acres 
     id: species_damage_acres 
-    task: crosstab_summary
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.crosstab_summary
     partial: 
       data: ${{ workflow.filter_overall_acres.return }}
       index_col: "Species responsible"
@@ -1296,10 +1497,13 @@ workflow:
       margins: true 
       margins_name: "Total Incidents"
       reset_index: true
+      fill_value: 0 
+      normalize: false
+      dropna: false
 
   - name: Add suffix to species damaged acres 
     id: add_suffix_species
-    task: add_suffix_to_column 
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.add_suffix_to_columns
     partial: 
       df: ${{ workflow.species_damage_acres.return }}
       columns:  [
@@ -1309,12 +1513,12 @@ workflow:
         "Total Incidents"
         ]
       suffix: "acres"
-      separator: "_"
+      missing: "ignore"
 
   # Species incidents 
   - name: Species incidents overall 
     id: species_overall_inc
-    task: crosstab_summary 
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.crosstab_summary 
     partial:
       data: ${{ workflow.assign_custom_bins.return }}
       index_col: "Species responsible"
@@ -1324,10 +1528,13 @@ workflow:
       margins: true 
       margins_name: "Total Incidents"
       reset_index: true
+      fill_value: 0 
+      normalize: false
+      dropna: false
 
   - name: Add suffix to species damaged incidents
     id: add_suffix_inc
-    task: add_suffix_to_column 
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.add_suffix_to_columns
     partial: 
       df: ${{ workflow.species_overall_inc.return }}
       columns: [
@@ -1337,7 +1544,7 @@ workflow:
         "Total Incidents"
         ]
       suffix: "incidents"
-      separator: "_"
+      missing: ignore
   
   - name: Merge species damaged and species incidents 
     id: merge_species_damage_inc 
@@ -1355,17 +1562,46 @@ workflow:
 
   - name: Persist combined species incidents and damages as geoparquet
     id: persist_comb_species
-    task: persist_df 
-    partial: 
+    task: persist_df
+    partial:
       df: ${{ workflow.merge_species_damage_inc.return }}
       filename: "total_land_damage_by_species_responsible"
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: "geoparquet"
+
+  - name: Draw species damage and incidents table
+    id: species_damage_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.merge_species_damage_inc.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: true
+        hide_header: false
+      widget_id: "Total Land Damage by Species Responsible"
+
+  - name: Persist species damage and incidents table as html text
+    id: species_damage_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.species_damage_table_html.return }}
+      filename: "total_land_damage_by_species_responsible_table.html"
+      filename_suffix: null
+
+  - name: Create species damage and incidents table widget
+    id: widget_species_damage_table
+    task: create_table_widget_single_view
+    partial:
+      title: "Total Land Damage by Species Responsible"
+      data: ${{ workflow.species_damage_table_html_url.return }}
   
   # Crops damage incidents
   - name: Crop destroyed incidents 
     id: crop_destroyed_inc 
-    task: crosstab_summary 
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.crosstab_summary 
     partial:
       data: ${{ workflow.assign_custom_bins.return }}
       index_col: "Main crop destroyed"
@@ -1375,10 +1611,13 @@ workflow:
       margins: true 
       margins_name: "Total Incidents"
       reset_index: true
+      fill_value: 0 
+      normalize: false
+      dropna: false
   
   - name: Add suffix to crop destroyed incidents 
     id: add_crop_inc 
-    task: add_suffix_to_column
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.add_suffix_to_columns
     partial: 
       df: ${{ workflow.crop_destroyed_inc.return }}
       columns: [
@@ -1388,12 +1627,12 @@ workflow:
         "Total Incidents"
         ]
       suffix: "incidents"
-      separator: "_"
+      missing: ignore
 
   # crops damaged in acres 
   - name: Crop destroyed acres
     id: crop_destroyed_acres
-    task: crosstab_summary 
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.crosstab_summary 
     partial:
       data: ${{ workflow.filter_overall_acres.return }}
       index_col: "Main crop destroyed"
@@ -1403,10 +1642,13 @@ workflow:
       margins: true 
       margins_name: "Total Incidents"
       reset_index: true
+      fill_value: 0 
+      normalize: false
+      dropna: false
   
   - name: Add suffix to crop destroyed acres
     id: add_crop_acres
-    task: add_suffix_to_column
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.add_suffix_to_columns
     partial: 
       df: ${{ workflow.crop_destroyed_acres.return }}
       columns: [
@@ -1416,7 +1658,7 @@ workflow:
         "Total Incidents"
         ]
       suffix: "acres"
-      separator: "_"
+      missing: ignore
 
   - name: Merge crops damaged and incidents
     id: merge_crops_damage_inc 
@@ -1434,27 +1676,77 @@ workflow:
 
   - name: Persist combined crops incidents and damages as geoparquet
     id: persist_comb_crops
-    task: persist_df 
-    partial: 
+    task: persist_df
+    partial:
       df: ${{ workflow.merge_crops_damage_inc.return }}
       filename: "total_crops_damaged_by_species"
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: "geoparquet"
 
+  - name: Draw crops damage and incidents table
+    id: crops_damage_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.merge_crops_damage_inc.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: true
+        hide_header: false
+      widget_id: "Total Crops Damaged by Species"
+
+  - name: Persist crops damage and incidents table as html text
+    id: crops_damage_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.crops_damage_table_html.return }}
+      filename: "total_crops_damaged_by_species_table.html"
+      filename_suffix: null
+
+  - name: Create crops damage and incidents table widget
+    id: widget_crops_damage_table
+    task: create_table_widget_single_view
+    partial:
+      title: "Total Crops Damaged by Species"
+      data: ${{ workflow.crops_damage_table_html_url.return }}
+
   # Map generation 
-  - name: Generate overall density grid
-    id: overall_density_grid 
-    task: generate_density_grid
+  - name: Create overall density map meshgrid 
+    id: overall_meshgrid 
+    task: create_meshgrid 
+    partial:
+      aoi: ${{ workflow.assign_custom_bins.return }}
+      auto_scale_or_custom_cell_size:
+        grid_cell_size: 2000
+      crs: "EPSG:3857"
+      intersecting_only: true
+
+  - name: Calculate overall feature density 
+    id: overall_feature_density 
+    task: calculate_feature_density 
     partial: 
-      features_gdf: ${{ workflow.assign_custom_bins.return }}
-      cell_size_meters: 2000 
+      geodataframe: ${{ workflow.assign_custom_bins.return }}
+      meshgrid: ${{ workflow.overall_meshgrid.return }}
       geometry_type: point 
+      sum_column: null 
+
+  - name: Retain density values greater than zero 
+    id: filter_positive_density
+    task: ecoscope_workflows_ext_ste.tasks.filter.filter_rows
+    partial: 
+      df: ${{ workflow.overall_feature_density.return }}
+      column_name: "density"
+      op: "gt"
+      value: 0
+      reset_index: true 
 
   - name: Sort density values 
     id: sort_density_values 
     task: sort_values 
     partial: 
-      df: ${{ workflow.overall_density_grid.return }}
+      df: ${{ workflow.filter_positive_density.return }}
       column_name: density 
       ascending: true 
       na_position: last
@@ -1487,15 +1779,16 @@ workflow:
 
   - name: Create density grid layers
     id: generate_density_layers
-    task: create_geojson_layer
+    task: ecoscope_workflows_ext_custom.tasks.results.create_geojson_layer
     partial: 
+      data_url: null
       layer_style: 
         filled: true 
         stroked: true 
         extruded: false 
         wireframe: false
         get_fill_color: density_bins_colors
-        get_line_color: density_bins_colors
+        get_line_color: [0,0,0,200]
         opacity: 0.55 
         get_line_width: 0.25
         get_elevation: 0
@@ -1516,25 +1809,38 @@ workflow:
 
   - name: Overlay Density Grid on Amboseli Map
     id: combine_ambo_grid_layers
-    task: combine_deckgl_map_layers
-    partial: 
-      static_layers: 
-        - ${{ workflow.create_ambo_layers_styled.return }}
-        - ${{ workflow.create_ambo_boundaries_styled.return }}
+    task: ecoscope_workflows_ext_ste.tasks.spatial_operations.combine_deckgl_map_layers
+    partial:
+      static_layers:
+        - ${{ workflow.create_land_layer.return }}
+        - ${{ workflow.create_bound_layer.return }}
+        - ${{ workflow.create_fence_layer.return }}
       grouped_layers: 
         - ${{ workflow.generate_density_layers.return }}
 
-  - name: Calculate Zoom Level for  Density Map
-    id: density_zoom_value
-    task: view_state_deck_gdf
-    partial:
-      pitch: 0
-      bearing: 0
-      gdf: ${{ workflow.apply_density_colormap.return }}
+  - title: Map Zoom & Extent
+    type: task-group
+    description: Calculate the geographic extent of the movement tracks and determine an appropriate zoom level and center point for the map. This ensures that all tracks are visible and well-framed when the map is rendered.
+    tasks:
+      - name: null
+        id: zoom_to_envelope
+        task: ecoscope_workflows_ext_ste.tasks.spatial_operations.envelope_gdf
+        partial:
+          gdf: ${{ workflow.apply_density_colormap.return }}
+          expansion_factor: 1.05
+
+      - name: Zoom view to gdf extent
+        id: gdf_image_extent
+        task: ecoscope_workflows_ext_ste.tasks.spatial_operations.compute_view_state_from_gdf
+        partial:
+          pitch: 0
+          bearing: 0
+          max_zoom: 15
+          gdf: ${{ workflow.zoom_to_envelope.return }}
 
   - name: Draw Crop raid Density Map
     id: draw_density_map
-    task: draw_map
+    task: ecoscope_workflows_ext_custom.tasks.results.draw_map 
     skipif:
       conditions:
         - any_is_empty_df
@@ -1547,7 +1853,7 @@ workflow:
       legend_style:
         placement: "bottom-right"
       geo_layers: ${{ workflow.combine_ambo_grid_layers.return }}
-      view_state: ${{ workflow.density_zoom_value.return }} 
+      view_state: ${{ workflow.gdf_image_extent.return }} 
 
   - name: Save crop raid density map
     id: persist_density_urls
@@ -1557,9 +1863,16 @@ workflow:
       text: ${{ workflow.draw_density_map.return }}
       filename: crop_raid_incident_density_map.html  # -- convert this to png
 
+  - name: Create crop raid density map widget
+    id: widget_density_map
+    task: create_map_widget_single_view
+    partial:
+      title: "Crop Raid Incident Density Map"
+      data: ${{ workflow.persist_density_urls.return }}
+
   - name: Convert crop density map to png
     id: convert_density_map_png
-    task: html_to_png
+    task: ecoscope_workflows_ext_custom.tasks.io.html_to_png
     partial:
       output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       html_path: ${{ workflow.persist_density_urls.return }}
@@ -1572,49 +1885,41 @@ workflow:
   # time of response 
   - name: Map column values to assign time of response colors 
     id: assign_response_colors
-    task: map_color_column_value
+    task: map_column_value
     partial:
-      df: ${{ workflow.assign_column_colors.return }}
+      df: ${{ workflow.crop_raid_loc_rgba.return }}
       col: "Time of ranger response"
       mapping: 
         "Before crop raid": "#a6cee3"
         "During crop raid": "#ff0000"  # Red (255, 0, 0, 255)
         "After crop raid": "#d5b60a"
+        "Unknown": "#cfcfc4"
 
       new_col: "timing_of_response_colors"
+      default: "#cfcfc4"
+      keep_unmapped: false
 
-  - name: Remove Geographic Outliers from Events
-    id: exclude_event_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
+  - name: Add rgba column from timing_of_response_colors
+    id: time_response_rgba
+    task: add_rgba_columns_from_hex
     partial: 
       df: ${{ workflow.assign_response_colors.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from events
-    id: remove_invalid_geoms
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_event_outliers.return }}
-      geometry_column: geometry 
+      columns: [
+        "timing_of_response_colors",
+        
+        ]
 
   - name: Generate response event scatterplot layer
     id: generate_response_layer
-    task: create_scatterplot_layer
+    task: ecoscope_workflows_ext_custom.tasks.results.create_scatterplot_layer
     skipif:
       conditions: 
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      data_url: null
       layer_style:
-        get_fill_color: timing_of_response_colors
+        get_fill_color: timing_of_response_colors_rgba
         get_line_color: [0, 0, 0]
         get_line_width: 0.25
         get_radius : 4
@@ -1623,32 +1928,25 @@ workflow:
       legend: 
         title: "Time of ranger response"
         label_column: "Time of ranger response"
-        color_column: "timing_of_response_colors"
+        color_column: "timing_of_response_colors_rgba"
         sort: ascending
         label_suffix: null
-      geodataframe: ${{ workflow.remove_invalid_geoms.return }}
+      geodataframe: ${{ workflow.time_response_rgba.return }}
 
   - name: Overlay response Events on Amboseli Map
     id: combine_ambo_lvs_layers
-    task: combine_deckgl_map_layers
-    partial: 
-      static_layers: 
-        - ${{ workflow.create_ambo_layers_styled.return }}
-        - ${{ workflow.create_ambo_boundaries_styled.return }}
+    task: ecoscope_workflows_ext_ste.tasks.spatial_operations.combine_deckgl_map_layers
+    partial:
+      static_layers:
+        - ${{ workflow.create_land_layer.return }}
+        - ${{ workflow.create_bound_layer.return }}
+        - ${{ workflow.create_fence_layer.return }}
       grouped_layers: 
         - ${{ workflow.generate_response_layer.return }}
 
-  - name: Calculate Zoom Level for response Event Map
-    id: response_zoom_value
-    task: view_state_deck_gdf
-    partial:
-      pitch: 0
-      bearing: 0
-      gdf: ${{ workflow.remove_invalid_geoms.return }}
-
   - name: Draw response  event map
     id: draw_response_map
-    task: draw_map
+    task: ecoscope_workflows_ext_custom.tasks.results.draw_map
     skipif:
       conditions:
         - any_is_empty_df
@@ -1661,7 +1959,7 @@ workflow:
       legend_style:
         placement: "bottom-right"
       geo_layers: ${{ workflow.combine_ambo_lvs_layers.return }}
-      view_state: ${{ workflow.response_zoom_value.return }} 
+      view_state: ${{ workflow.gdf_image_extent.return }} 
 
   - name: Persist response  event map
     id: persist_response_map
@@ -1671,9 +1969,16 @@ workflow:
       text: ${{ workflow.draw_response_map.return }}
       filename: timing_of_response_event_map.html  # -- convert this to png
 
+  - name: Create timing of response map widget
+    id: widget_response_map
+    task: create_map_widget_single_view
+    partial:
+      title: "Timing of Ranger Response Map"
+      data: ${{ workflow.persist_response_map.return }}
+
   - name: Convert response  event map to png
     id: convert_response_map_png
-    task: html_to_png
+    task: ecoscope_workflows_ext_custom.tasks.io.html_to_png
     partial:
       output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       html_path: ${{ workflow.persist_response_map.return }}
@@ -1686,9 +1991,9 @@ workflow:
   # species responsible
   - name: Map column values to assign species responsible colors 
     id: assign_species_colors
-    task: map_color_column_value
+    task: map_column_value
     partial:
-      df: ${{ workflow.assign_column_colors.return }}
+      df: ${{ workflow.crop_raid_loc_rgba.return }}
       col: "Species responsible"
       mapping: 
         "Baboon":  "#b3e2cd"
@@ -1702,39 +2007,30 @@ workflow:
         "Unknown": "#cfcfc4"
 
       new_col: "species_responsible_colors"
+      default: "#cfcfc4"
+      keep_unmapped: false
 
-  - name: Remove Geographic Outliers from Events
-    id: exclude_species_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
+  - name: Add rgba column from species responsible
+    id: species_rgba
+    task: add_rgba_columns_from_hex
     partial: 
       df: ${{ workflow.assign_species_colors.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from events
-    id: remove_species_geoms
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_species_outliers.return }}
-      geometry_column: geometry 
+      columns: [
+        "species_responsible_colors",
+        
+        ]
 
   - name: Generate species event scatterplot layer
     id: generate_species_layer
-    task: create_scatterplot_layer
+    task: ecoscope_workflows_ext_custom.tasks.results.create_scatterplot_layer
     skipif:
       conditions: 
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      data_url: null 
       layer_style:
-        get_fill_color: "species_responsible_colors"
+        get_fill_color: "species_responsible_colors_rgba"
         get_line_color: [0, 0, 0]
         get_line_width: 0.25
         get_radius : 4
@@ -1743,32 +2039,25 @@ workflow:
       legend: 
         title: "Species Responsible"
         label_column: "Species responsible"
-        color_column: "species_responsible_colors"
+        color_column: "species_responsible_colors_rgba"
         sort: ascending
         label_suffix: null
-      geodataframe: ${{ workflow.remove_species_geoms.return }}
+      geodataframe: ${{ workflow.species_rgba.return }}
 
   - name: Overlay species Events on Amboseli Map
     id: combine_ambo_species_layers
-    task: combine_deckgl_map_layers
-    partial: 
-      static_layers: 
-        - ${{ workflow.create_ambo_layers_styled.return }}
-        - ${{ workflow.create_ambo_boundaries_styled.return }}
+    task: ecoscope_workflows_ext_ste.tasks.spatial_operations.combine_deckgl_map_layers
+    partial:
+      static_layers:
+        - ${{ workflow.create_land_layer.return }}
+        - ${{ workflow.create_bound_layer.return }}
+        - ${{ workflow.create_fence_layer.return }}
       grouped_layers: 
         - ${{ workflow.generate_species_layer.return }}
 
-  - name: Calculate Zoom Level for species Event Map
-    id: species_zoom_value
-    task: view_state_deck_gdf
-    partial:
-      pitch: 0
-      bearing: 0
-      gdf: ${{ workflow.remove_species_geoms.return }}
-
   - name: Draw species  event map
     id: draw_species_map
-    task: draw_map
+    task: ecoscope_workflows_ext_custom.tasks.results.draw_map
     skipif:
       conditions:
         - any_is_empty_df
@@ -1780,8 +2069,8 @@ workflow:
       max_zoom: 10
       legend_style:
         placement: "bottom-right"
-      geo_layers: ${{ workflow.combine_ambo_lvs_layers.return }}
-      view_state: ${{ workflow.species_zoom_value.return }} 
+      geo_layers: ${{ workflow.combine_ambo_species_layers.return }}
+      view_state: ${{ workflow.gdf_image_extent.return }} 
 
   - name: Persist species  event map
     id: persist_species_map
@@ -1791,9 +2080,16 @@ workflow:
       text: ${{ workflow.draw_species_map.return }}
       filename: species_responsible_event_map.html  # -- convert this to png
 
+  - name: Create species responsible map widget
+    id: widget_species_map
+    task: create_map_widget_single_view
+    partial:
+      title: "Species Responsible Map"
+      data: ${{ workflow.persist_species_map.return }}
+
   - name: Convert species event map to png
     id: convert_species_map_png
-    task: html_to_png
+    task: ecoscope_workflows_ext_custom.tasks.io.html_to_png
     partial:
       output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       html_path: ${{ workflow.persist_species_map.return }}
@@ -1813,7 +2109,7 @@ workflow:
   
   - name: Map color columns to assign to crop destroyed 
     id: assign_overall_crop_colors
-    task: map_color_column_value
+    task: map_column_value
     partial:
       col: "Main crop destroyed"
       mapping:
@@ -1841,105 +2137,96 @@ workflow:
         "Tomatoes":      "#fcd5ce"
         "Watermelon":    "#d4ede8"
         "Other":         "#e8e8e8"
-        "None":          "#ffffff"
+        "None":          "#cfcfc4"
+        "Unknown": "#cfcfc4"
       new_col: "crop_destroyed_colors"
+      default: "#e8e8e8"
+      keep_unmapped: false
     mapvalues:
-      argnames: df 
+      argnames: df
       argvalues: ${{ workflow.split_by_month.return }}
+
+  - name: Add rgba column from month crop destroyed
+    id: month_crops_rgba
+    task: add_rgba_columns_from_hex
+    partial: 
+      columns: [
+        "crop_destroyed_colors",
+        
+        ]
+    mapvalues: 
+      argnames: df 
+      argvalues: ${{ workflow.assign_overall_crop_colors.return }}
 
   - name: Get unique month name
     id: get_month_name
-    task: dataframe_column_first_unique_str
+    task: column_first_unique_value
     partial:
       column_name: "ts_month_name"
     mapvalues:
       argnames: df 
-      argvalues: ${{ workflow.assign_overall_crop_colors.return }}
-  
-  - name: Remove Geographic Outliers from crop events 
-    id: exclude_crop_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      
-      z_threshold: 3
-    mapvalues:
-      argnames: df
-      argvalues: ${{ workflow.assign_overall_crop_colors.return }}
-
-  - name: Remove invalid points from events
-    id: remove_crop_geoms
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      geometry_column: geometry 
-    mapvalues:  
-      argnames: gdf
-      argvalues: ${{ workflow.exclude_crop_outliers.return }}
+      argvalues: ${{ workflow.month_crops_rgba.return }}
 
   - name: Generate crop event scatterplot layer
     id: generate_crop_layer
-    task: create_scatterplot_layer
+    task: ecoscope_workflows_ext_custom.tasks.results.create_scatterplot_layer
     skipif:
       conditions: 
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      data_url: null
       layer_style:
-        get_fill_color: "crop_destroyed_colors"
+        get_fill_color: "crop_destroyed_colors_rgba"
         get_line_color: [0, 0, 0]
         get_line_width: 0.25
         get_radius : 4
         opacity: 0.75
         stroked: true
-      legend: 
+      legend:
         title: "Crop destroyed"
         label_column: "Main crop destroyed"
-        color_column: "crop_destroyed_colors"
+        color_column: "crop_destroyed_colors_rgba"
         sort: ascending
         label_suffix: null
-    mapvalues:  
+    mapvalues:
       argnames: geodataframe
-      argvalues: ${{ workflow.remove_crop_geoms.return }}
+      argvalues: ${{ workflow.month_crops_rgba.return }}
 
   - name: Overlay crop Events on Amboseli Map
     id: combine_ambo_crop_layers
-    task: combine_deckgl_map_layers
-    partial: 
-      static_layers: 
-        - ${{ workflow.create_ambo_layers_styled.return }}
-        - ${{ workflow.create_ambo_boundaries_styled.return }}
+    task: ecoscope_workflows_ext_ste.tasks.spatial_operations.combine_deckgl_map_layers
+    partial:
+      static_layers:
+        - ${{ workflow.create_land_layer.return }}
+        - ${{ workflow.create_bound_layer.return }}
+        - ${{ workflow.create_fence_layer.return }}
     mapvalues:
       argnames: grouped_layers
       argvalues: ${{ workflow.generate_crop_layer.return }}
 
   - name: Calculate Zoom Level for crops Event Map
     id: crops_zoom_value
-    task: view_state_deck_gdf
+    task: ecoscope_workflows_ext_ste.tasks.spatial_operations.compute_view_state_from_gdf
     partial:
       pitch: 0
       bearing: 0
+      max_zoom: 15
     mapvalues:
       argnames: gdf
-      argvalues: ${{ workflow.remove_crop_geoms.return }}
+      argvalues: ${{ workflow.month_crops_rgba.return }}
 
   - name: Combine crop event layers with view state 
     id: zip_events_view_state
-    task: zip_groupbykey 
+    task: groupbykey 
     partial: 
-      sequences: 
+      iterables: 
         - ${{ workflow.combine_ambo_crop_layers.return }}
         - ${{ workflow.crops_zoom_value.return }}
 
   - name: Draw crops event map
     id: draw_crops_map
-    task: draw_map
+    task: ecoscope_workflows_ext_custom.tasks.results.draw_map 
     skipif:
       conditions:
         - any_is_empty_df
@@ -1959,9 +2246,9 @@ workflow:
 
   - name: Combine month names and crop event map 
     id: zip_crop_html_month
-    task: zip_groupbykey
+    task: groupbykey
     partial:
-      sequences:
+      iterables:
         - ${{ workflow.draw_crops_map.return }}
         - ${{ workflow.get_month_name.return }}
 
@@ -1971,15 +2258,30 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filename: null # -- convert this to png
-    mapvalues:  
-      argnames: 
-        - text 
+    mapvalues:
+      argnames:
+        - text
         - filename_suffix
       argvalues: ${{ workflow.zip_crop_html_month.return }}
 
+  - name: Create per-month crop destroyed map widget
+    id: widget_crops_map
+    task: create_map_widget_single_view
+    partial:
+      title: "Crop Destroyed Map (by Month)"
+    map:
+      argnames: [view, data]
+      argvalues: ${{ workflow.persist_crop_map.return }}
+
+  - name: Merge per-month crop destroyed map widgets
+    id: widget_crops_map_grouped
+    task: merge_widget_views
+    partial:
+      widgets: ${{ workflow.widget_crops_map.return }}
+
   - name: Convert crop event map to png
     id: convert_crop_map_png
-    task: html_to_png
+    task: ecoscope_workflows_ext_custom.tasks.io.html_to_png
     partial:
       output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
 
@@ -1993,10 +2295,37 @@ workflow:
       argvalues: ${{ workflow.persist_crop_map.return }}
 
 
+  - name: Convert chart htmls to png
+    id: convert_chart_html_png 
+    task: html_to_png 
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: 
+        - ${{ workflow.persist_time_bin_chart.return }}
+        - ${{ workflow.persist_damage_boxplot.return }}
+        - ${{ workflow.persist_month_raid_locs.return }}
+        - ${{ workflow.persist_crop_destroyed_pie.return }}
+        - ${{ workflow.persist_crop_damage_pie.return }}
+        - ${{ workflow.persist_monthly_other.return }}
+        - ${{ workflow.persist_total_damage.return }}
+
+      config: 
+        width: 1280          
+        height: 720          
+        full_page: false
+        device_scale_factor: 2.0 
+        wait_for_timeout: 1
+        timeout: 0 
+        max_concurrent_pages: 5
+
   # Template generation 
   - name: Download template for Big Life Crop Raid Report
     id: download_big_life_template
-    task: fetch_and_persist_file
+    task: ecoscope_workflows_ext_ste.tasks.io.fetch_and_persist_file
     partial: 
       url: https://www.dropbox.com/scl/fi/gu3hnf1zh8lvyzbc6qrye/crop_raid_report_template.docx?rlkey=x0r1bii8zu9y8zhj5a5kyfry7&st=yczc9o23&dl=0
       output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
@@ -2004,33 +2333,38 @@ workflow:
       retries: 3
       unzip: false
   
-  - name: Get user name to use on template 
-    id: get_user_name 
-    task: get_current_user
-    partial: 
-      client: ${{ workflow.er_client_name.return }}
-  
-  - name: Get user full name 
-    id: get_fullname 
-    task: get_user_full_name 
-    partial: 
-      user: ${{ workflow.get_user_name.return }}
-
-  - name: Add outputs generated to template and persist 
+  - name: Add outputs generated to template and persist
     id: generate_report
-    task: generate_crop_raid_report 
-    partial: 
+    task: generate_crop_raid_report
+    partial:
       template_path: ${{ workflow.download_big_life_template.return }}
       output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filename: "big_life_crop_raid_report.docx"
+      filename: "overall_report.docx"
       time_period: ${{ workflow.time_range.return }}
-      generated_by: ${{ workflow.get_fullname.return }}
-      
+      generated_by: "Ecoscope"
+
   - name: Generate Big Life Crop Raid Dashboard Report
     id: crop_raid_dashboard_report
     task: gather_dashboard
-    partial: 
+    partial:
       details: ${{ workflow.workflow_details.return }}
-      widgets: []
+      widgets:
+        - ${{ workflow.widget_density_map.return }}
+        - ${{ workflow.widget_response_map.return }}
+        - ${{ workflow.widget_species_map.return }}
+        - ${{ workflow.widget_crops_map_grouped.return }}
+        - ${{ workflow.widget_time_bin_chart.return }}
+        - ${{ workflow.widget_damage_boxplot.return }}
+        - ${{ workflow.widget_month_raid_locs.return }}
+        - ${{ workflow.widget_crop_destroyed_pie.return }}
+        - ${{ workflow.widget_crop_damage_pie.return }}
+        - ${{ workflow.widget_monthly_other.return }}
+        - ${{ workflow.widget_total_damage.return }}
+        - ${{ workflow.widget_ele_acre_table.return }}
+        - ${{ workflow.widget_overall_ele_table.return }}
+        - ${{ workflow.widget_ranger_table.return }}
+        - ${{ workflow.widget_total_acres_table.return }}
+        - ${{ workflow.widget_species_damage_table.return }}
+        - ${{ workflow.widget_crops_damage_table.return }}
       time_range: ${{ workflow.time_range.return }}
       groupers: ${{ workflow.groupers.return }}

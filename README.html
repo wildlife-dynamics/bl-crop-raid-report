@@ -23,16 +23,19 @@
 <header id="title-block-header">
 <h1 class="title">BL Crop Raid Report — User Guide</h1>
 </header>
+<h1 id="bl-crop-raid-report-user-guide">BL Crop Raid Report — User Guide</h1>
 <p>This guide walks you through configuring and running the Big Life Crop Raid Report workflow, which ingests human-wildlife conflict crop raid events from EarthRanger and produces a comprehensive incident analysis report for the Amboseli ecosystem.</p>
 <hr />
 <h2 id="overview">Overview</h2>
 <p>The workflow delivers, for each run:</p>
 <ul>
 <li><strong>Charts</strong> — time-of-day incident distribution, damage size boxplot by ranger response timing, monthly incidents by crop raid location, crop species pie charts (by count and by area), monthly incidents and damage stacked bars</li>
-<li><strong>Maps</strong> — crop raid density grid, timing of ranger response scatter map, species responsible scatter map, per-month crop destroyed scatter maps</li>
+<li><strong>Maps</strong> — crop raid density grid, timing of ranger response scatter map, species responsible scatter map, and a per-month crop destroyed scatter map (one view per month)</li>
 <li><strong>Summary tables</strong> — elephant damage by month, mean elephant group size, ranger response timing with percentages, total acres damaged, species damage, crop damage (6 GeoParquet files)</li>
-<li>A <strong>Word document report</strong> — all charts, maps, and tables assembled into the Big Life crop raid report template</li>
+<li>A <strong>Word document report</strong> (<code>overall_report.docx</code>) — all charts, maps, and tables assembled into the Big Life crop raid report template, downloaded automatically from Dropbox</li>
+<li>An <strong>interactive dashboard</strong> — 17 widgets covering every chart, map, and table produced by the run (the per-month crop maps are merged into a single switchable widget)</li>
 </ul>
+<p>The three Amboseli geospatial layers and the Word report template are downloaded automatically from Dropbox at run time. No additional setup is required for these.</p>
 <hr />
 <h2 id="prerequisites">Prerequisites</h2>
 <p>Before running the workflow, ensure you have:</p>
@@ -131,14 +134,14 @@
 <h2 id="running-the-workflow">Running the Workflow</h2>
 <p>Once all parameters are configured, click <strong>Submit</strong>. The runner will:</p>
 <ol type="1">
-<li>Download the Amboseli land-use, ranch boundary, and electric fence layers from Dropbox.</li>
+<li>Download the Amboseli land-use, ranch boundary, and electric fence layers from Dropbox and reproject them to EPSG:4326.</li>
 <li>Fetch <code>hwc_crop_raids</code> events from EarthRanger for the specified time range.</li>
-<li>Process and normalise event details (field titles, numeric conversions, time bins).</li>
+<li>Process and normalise event details (field titles, numeric conversions, 3-hour time bins).</li>
 <li>Generate all 7 charts and persist as HTML and PNG.</li>
-<li>Generate the density grid map, response timing map, species map, and per-month crop maps.</li>
+<li>Generate the density grid map, timing-of-response map, species map, and a per-month crop-destroyed map (one view per month).</li>
 <li>Compute 6 summary tables and persist as GeoParquet files.</li>
-<li>Look up the current EarthRanger user’s name for report attribution.</li>
-<li>Populate the Big Life crop raid Word template with all outputs.</li>
+<li>Download the Big Life crop raid Word template from Dropbox and populate it with all charts, maps, and tables.</li>
+<li>Assemble the 17-widget dashboard.</li>
 <li>Save all files to the directory specified by <code>ECOSCOPE_WORKFLOWS_RESULTS</code>.</li>
 </ol>
 <hr />
@@ -157,78 +160,81 @@
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>time_bin_bar_chart.html</code> / <code>.png</code></td>
+<td><code>time_bin_bar_chart</code> (<code>.html</code> + <code>.png</code>)</td>
 <td>Time of day bar chart (3-hour bins)</td>
 </tr>
 <tr class="even">
-<td><code>damage_size_boxplot.html</code> / <code>.png</code></td>
+<td><code>damage_size_boxplot</code> (<code>.html</code> + <code>.png</code>)</td>
 <td>Damage size boxplot by ranger response timing</td>
 </tr>
 <tr class="odd">
-<td><code>monthly_crop_raid_location_incidents.html</code> / <code>.png</code></td>
+<td><code>monthly_crop_raid_location_incidents</code> (<code>.html</code> + <code>.png</code>)</td>
 <td>Monthly incidents stacked by crop raid location</td>
 </tr>
 <tr class="even">
-<td><code>proportion_crop_species_targeted.html</code> / <code>.png</code></td>
-<td>Crop species pie chart by incident count (Core AOO)</td>
+<td><code>proportion_crop_species_targeted</code> (<code>.html</code> + <code>.png</code>)</td>
+<td>Crop species pie chart by incident count (Core AOO, damage-confirmed incidents only)</td>
 </tr>
 <tr class="odd">
-<td><code>proportion_land_damaged.html</code> / <code>.png</code></td>
-<td>Crop species pie chart by total acres damaged (Core AOO)</td>
+<td><code>proportion_land_damaged</code> (<code>.html</code> + <code>.png</code>)</td>
+<td>Crop species pie chart by total acres damaged (Core AOO, damage-confirmed incidents only)</td>
 </tr>
 <tr class="even">
-<td><code>total_incidents_recorded.html</code> / <code>.png</code></td>
-<td>Monthly incidents stacked by grouped crop (Core AOO)</td>
+<td><code>total_incidents_recorded</code> (<code>.html</code> + <code>.png</code>)</td>
+<td>Monthly incidents stacked by crop (Core AOO; only the 6 named crops are broken out, all others grouped as “Other”)</td>
 </tr>
 <tr class="odd">
-<td><code>total_damage_recorded.html</code> / <code>.png</code></td>
-<td>Monthly damage in acres stacked by grouped crop (Core AOO)</td>
+<td><code>total_damage_recorded</code> (<code>.html</code> + <code>.png</code>)</td>
+<td>Monthly damage stacked by crop (Core AOO; see note below)</td>
 </tr>
 <tr class="even">
-<td><code>crop_raid_incident_density_map.html</code> / <code>.png</code></td>
+<td><code>crop_raid_incident_density_map</code> (<code>.html</code> + <code>.png</code>)</td>
 <td>Density grid map of all crop raid incidents</td>
 </tr>
 <tr class="odd">
-<td><code>timing_of_response_event_map.html</code> / <code>.png</code></td>
+<td><code>timing_of_response_event_map</code> (<code>.html</code> + <code>.png</code>)</td>
 <td>Scatter map coloured by ranger response timing</td>
 </tr>
 <tr class="even">
-<td><code>species_responsible_event_map.html</code> / <code>.png</code></td>
+<td><code>species_responsible_event_map</code> (<code>.html</code> + <code>.png</code>)</td>
 <td>Scatter map coloured by species responsible</td>
 </tr>
 <tr class="odd">
-<td><code>&lt;month&gt;.html</code> / <code>.png</code></td>
-<td>Per-month crop destroyed scatter map</td>
+<td><code>&lt;month&gt;</code> (<code>.html</code> + <code>.png</code>, one per month)</td>
+<td>Per-month crop-destroyed scatter map</td>
 </tr>
 <tr class="even">
-<td><code>total_land_size_damaged_by_elephants.geoparquet</code></td>
+<td><code>total_land_size_damaged_by_elephants</code> (GeoParquet)</td>
 <td>Elephant damage by month and crop species (acres)</td>
 </tr>
 <tr class="odd">
-<td><code>average_elephant_group_size_over_time.geoparquet</code></td>
+<td><code>average_elephant_group_size_over_time</code> (GeoParquet)</td>
 <td>Mean elephant group size per month</td>
 </tr>
 <tr class="even">
-<td><code>timing_of_ranger_response.geoparquet</code></td>
+<td><code>timing_of_ranger_response</code> (GeoParquet)</td>
 <td>Ranger response timing crosstab with percentages</td>
 </tr>
 <tr class="odd">
-<td><code>total_area_damaged_by_crop_raid_location.geoparquet</code></td>
+<td><code>total_area_damaged_by_crop_raid_location</code> (GeoParquet)</td>
 <td>Acres damaged by response timing and location</td>
 </tr>
 <tr class="even">
-<td><code>total_land_damage_by_species_responsible.geoparquet</code></td>
+<td><code>total_land_damage_by_species_responsible</code> (GeoParquet)</td>
 <td>Species incidents and acres by crop raid location</td>
 </tr>
 <tr class="odd">
-<td><code>total_crops_damaged_by_species.geoparquet</code></td>
+<td><code>total_crops_damaged_by_species</code> (GeoParquet)</td>
 <td>Crop incidents and acres by crop raid location</td>
 </tr>
 <tr class="even">
-<td><code>big_life_crop_raid_report.docx</code></td>
+<td><code>overall_report.docx</code></td>
 <td>Final populated Word crop raid report</td>
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p><strong>Note:</strong> despite its “Acres” axis label, <code>total_damage_recorded</code> is not currently filtered to acre-measured events — it charts <code>Damage size</code> across whatever measurement units are present. If your EarthRanger data mixes acres with other units, treat this chart as indicative rather than a strict acreage total; see <a href="docs/troubleshooting.html">Troubleshooting</a>.</p>
+</blockquote>
 </body>
 </html>

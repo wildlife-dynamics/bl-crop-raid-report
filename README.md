@@ -9,9 +9,12 @@ This guide walks you through configuring and running the Big Life Crop Raid Repo
 The workflow delivers, for each run:
 
 - **Charts** — time-of-day incident distribution, damage size boxplot by ranger response timing, monthly incidents by crop raid location, crop species pie charts (by count and by area), monthly incidents and damage stacked bars
-- **Maps** — crop raid density grid, timing of ranger response scatter map, species responsible scatter map, per-month crop destroyed scatter maps
+- **Maps** — crop raid density grid, timing of ranger response scatter map, species responsible scatter map, and a per-month crop destroyed scatter map (one view per month)
 - **Summary tables** — elephant damage by month, mean elephant group size, ranger response timing with percentages, total acres damaged, species damage, crop damage (6 GeoParquet files)
-- A **Word document report** — all charts, maps, and tables assembled into the Big Life crop raid report template
+- A **Word document report** (`overall_report.docx`) — all charts, maps, and tables assembled into the Big Life crop raid report template, downloaded automatically from Dropbox
+- An **interactive dashboard** — 17 widgets covering every chart, map, and table produced by the run (the per-month crop maps are merged into a single switchable widget)
+
+The three Amboseli geospatial layers and the Word report template are downloaded automatically from Dropbox at run time. No additional setup is required for these.
 
 ---
 
@@ -98,14 +101,14 @@ Select the EarthRanger data source configured in Step 2 from the **Data Source**
 
 Once all parameters are configured, click **Submit**. The runner will:
 
-1. Download the Amboseli land-use, ranch boundary, and electric fence layers from Dropbox.
+1. Download the Amboseli land-use, ranch boundary, and electric fence layers from Dropbox and reproject them to EPSG:4326.
 2. Fetch `hwc_crop_raids` events from EarthRanger for the specified time range.
-3. Process and normalise event details (field titles, numeric conversions, time bins).
+3. Process and normalise event details (field titles, numeric conversions, 3-hour time bins).
 4. Generate all 7 charts and persist as HTML and PNG.
-5. Generate the density grid map, response timing map, species map, and per-month crop maps.
+5. Generate the density grid map, timing-of-response map, species map, and a per-month crop-destroyed map (one view per month).
 6. Compute 6 summary tables and persist as GeoParquet files.
-7. Look up the current EarthRanger user's name for report attribution.
-8. Populate the Big Life crop raid Word template with all outputs.
+7. Download the Big Life crop raid Word template from Dropbox and populate it with all charts, maps, and tables.
+8. Assemble the 17-widget dashboard.
 9. Save all files to the directory specified by `ECOSCOPE_WORKFLOWS_RESULTS`.
 
 ---
@@ -116,21 +119,23 @@ All outputs are written to `$ECOSCOPE_WORKFLOWS_RESULTS/`:
 
 | File | Description |
 |------|-------------|
-| `time_bin_bar_chart.html` / `.png` | Time of day bar chart (3-hour bins) |
-| `damage_size_boxplot.html` / `.png` | Damage size boxplot by ranger response timing |
-| `monthly_crop_raid_location_incidents.html` / `.png` | Monthly incidents stacked by crop raid location |
-| `proportion_crop_species_targeted.html` / `.png` | Crop species pie chart by incident count (Core AOO) |
-| `proportion_land_damaged.html` / `.png` | Crop species pie chart by total acres damaged (Core AOO) |
-| `total_incidents_recorded.html` / `.png` | Monthly incidents stacked by grouped crop (Core AOO) |
-| `total_damage_recorded.html` / `.png` | Monthly damage in acres stacked by grouped crop (Core AOO) |
-| `crop_raid_incident_density_map.html` / `.png` | Density grid map of all crop raid incidents |
-| `timing_of_response_event_map.html` / `.png` | Scatter map coloured by ranger response timing |
-| `species_responsible_event_map.html` / `.png` | Scatter map coloured by species responsible |
-| `<month>.html` / `.png` | Per-month crop destroyed scatter map |
-| `total_land_size_damaged_by_elephants.geoparquet` | Elephant damage by month and crop species (acres) |
-| `average_elephant_group_size_over_time.geoparquet` | Mean elephant group size per month |
-| `timing_of_ranger_response.geoparquet` | Ranger response timing crosstab with percentages |
-| `total_area_damaged_by_crop_raid_location.geoparquet` | Acres damaged by response timing and location |
-| `total_land_damage_by_species_responsible.geoparquet` | Species incidents and acres by crop raid location |
-| `total_crops_damaged_by_species.geoparquet` | Crop incidents and acres by crop raid location |
-| `big_life_crop_raid_report.docx` | Final populated Word crop raid report |
+| `time_bin_bar_chart` (`.html` + `.png`) | Time of day bar chart (3-hour bins) |
+| `damage_size_boxplot` (`.html` + `.png`) | Damage size boxplot by ranger response timing |
+| `monthly_crop_raid_location_incidents` (`.html` + `.png`) | Monthly incidents stacked by crop raid location |
+| `proportion_crop_species_targeted` (`.html` + `.png`) | Crop species pie chart by incident count (Core AOO, damage-confirmed incidents only) |
+| `proportion_land_damaged` (`.html` + `.png`) | Crop species pie chart by total acres damaged (Core AOO, damage-confirmed incidents only) |
+| `total_incidents_recorded` (`.html` + `.png`) | Monthly incidents stacked by crop (Core AOO; only the 6 named crops are broken out, all others grouped as "Other") |
+| `total_damage_recorded` (`.html` + `.png`) | Monthly damage stacked by crop (Core AOO; see note below) |
+| `crop_raid_incident_density_map` (`.html` + `.png`) | Density grid map of all crop raid incidents |
+| `timing_of_response_event_map` (`.html` + `.png`) | Scatter map coloured by ranger response timing |
+| `species_responsible_event_map` (`.html` + `.png`) | Scatter map coloured by species responsible |
+| `<month>` (`.html` + `.png`, one per month) | Per-month crop-destroyed scatter map |
+| `total_land_size_damaged_by_elephants` (GeoParquet) | Elephant damage by month and crop species (acres) |
+| `average_elephant_group_size_over_time` (GeoParquet) | Mean elephant group size per month |
+| `timing_of_ranger_response` (GeoParquet) | Ranger response timing crosstab with percentages |
+| `total_area_damaged_by_crop_raid_location` (GeoParquet) | Acres damaged by response timing and location |
+| `total_land_damage_by_species_responsible` (GeoParquet) | Species incidents and acres by crop raid location |
+| `total_crops_damaged_by_species` (GeoParquet) | Crop incidents and acres by crop raid location |
+| `overall_report.docx` | Final populated Word crop raid report |
+
+> **Note:** despite its "Acres" axis label, `total_damage_recorded` is not currently filtered to acre-measured events — it charts `Damage size` across whatever measurement units are present. If your EarthRanger data mixes acres with other units, treat this chart as indicative rather than a strict acreage total; see [Troubleshooting](docs/troubleshooting.html).
