@@ -453,6 +453,9 @@ workflow:
   - name: Create time of day incidents chart widget
     id: widget_time_bin_chart
     task: create_plot_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Time of Day of Incidents"
       data: ${{ workflow.persist_time_bin_chart.return }}
@@ -497,6 +500,9 @@ workflow:
   - name: Create damage size boxplot widget
     id: widget_damage_boxplot
     task: create_plot_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Damage Size by Ranger Response Time"
       data: ${{ workflow.persist_damage_boxplot.return }}
@@ -589,6 +595,9 @@ workflow:
   - name: Create monthly crop raid location chart widget
     id: widget_month_raid_locs
     task: create_plot_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Monthly Crop Raid Location Incidents"
       data: ${{ workflow.persist_month_raid_locs.return }}
@@ -758,6 +767,9 @@ workflow:
   - name: Create crop species targeted pie chart widget
     id: widget_crop_destroyed_pie
     task: create_plot_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Proportion of Crop Species Targeted"
       data: ${{ workflow.persist_crop_destroyed_pie.return }}
@@ -860,6 +872,9 @@ workflow:
   - name: Create land damaged by crop pie chart widget
     id: widget_crop_damage_pie
     task: create_plot_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Proportion of Land Damaged by Crop"
       data: ${{ workflow.persist_crop_damage_pie.return }}
@@ -1031,6 +1046,9 @@ workflow:
   - name: Create total incidents recorded chart widget
     id: widget_monthly_other
     task: create_plot_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Total Incidents Recorded"
       data: ${{ workflow.persist_monthly_other.return }}
@@ -1108,6 +1126,9 @@ workflow:
   - name: Create total damage recorded chart widget
     id: widget_total_damage
     task: create_plot_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Total Damage Recorded"
       data: ${{ workflow.persist_total_damage.return }}
@@ -1207,6 +1228,9 @@ workflow:
   - name: Create elephant acres damaged table widget
     id: widget_ele_acre_table
     task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Total Land Size Damaged by Elephants"
       data: ${{ workflow.ele_acre_table_html_url.return }}
@@ -1297,6 +1321,9 @@ workflow:
   - name: Create average elephant group size table widget
     id: widget_overall_ele_table
     task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Average Elephant Group Size Over Time"
       data: ${{ workflow.overall_ele_table_html_url.return }}
@@ -1388,6 +1415,9 @@ workflow:
   - name: Create timing of ranger response table widget
     id: widget_ranger_table
     task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Timing of Ranger Response"
       data: ${{ workflow.ranger_table_html_url.return }}
@@ -1480,6 +1510,9 @@ workflow:
   - name: Create total area damaged table widget
     id: widget_total_acres_table
     task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Total Area Damaged by Crop Raid Location"
       data: ${{ workflow.total_acres_table_html_url.return }}
@@ -1594,6 +1627,9 @@ workflow:
   - name: Create species damage and incidents table widget
     id: widget_species_damage_table
     task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Total Land Damage by Species Responsible"
       data: ${{ workflow.species_damage_table_html_url.return }}
@@ -1708,6 +1744,9 @@ workflow:
   - name: Create crops damage and incidents table widget
     id: widget_crops_damage_table
     task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Total Crops Damaged by Species"
       data: ${{ workflow.crops_damage_table_html_url.return }}
@@ -1866,6 +1905,9 @@ workflow:
   - name: Create crop raid density map widget
     id: widget_density_map
     task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Crop Raid Incident Density Map"
       data: ${{ workflow.persist_density_urls.return }}
@@ -1972,6 +2014,9 @@ workflow:
   - name: Create timing of response map widget
     id: widget_response_map
     task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Timing of Ranger Response Map"
       data: ${{ workflow.persist_response_map.return }}
@@ -2083,6 +2128,9 @@ workflow:
   - name: Create species responsible map widget
     id: widget_species_map
     task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Species Responsible Map"
       data: ${{ workflow.persist_species_map.return }}
@@ -2267,6 +2315,9 @@ workflow:
   - name: Create per-month crop destroyed map widget
     id: widget_crops_map
     task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Crop Destroyed Map (by Month)"
     map:
