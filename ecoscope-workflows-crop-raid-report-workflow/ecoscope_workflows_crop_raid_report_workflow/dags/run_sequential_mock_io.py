@@ -2296,6 +2296,30 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    rename_ele_acre_columns = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("rename_ele_acre_columns")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=convert_month_str,
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={"ts_month_name": "Month Name"},
+            raise_if_not_found=False,
+            **(params.get("rename_ele_acre_columns") or {}),
+        )
+        .call()
+    )
+
     ele_acre_table_html = (
         task(draw_table)
         .validate()
@@ -2310,7 +2334,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            dataframe=convert_month_str,
+            dataframe=rename_ele_acre_columns,
             columns=None,
             table_config={
                 "enable_sorting": True,
@@ -2445,7 +2469,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             df=order_overall_ele,
-            columns=["Damage size"],
+            columns=["group_size"],
             errors="coerce",
             fill_value=0,
             **(params.get("convert_ele_int") or {}),
@@ -2497,6 +2521,33 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    rename_overall_ele_columns = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("rename_overall_ele_columns")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=convert_ele_month_str,
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "ts_month_name": "Month Name",
+                "group_size": "Average Group Size",
+            },
+            raise_if_not_found=False,
+            **(params.get("rename_overall_ele_columns") or {}),
+        )
+        .call()
+    )
+
     overall_ele_table_html = (
         task(draw_table)
         .validate()
@@ -2511,7 +2562,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            dataframe=convert_ele_month_str,
+            dataframe=rename_overall_ele_columns,
             columns=None,
             table_config={
                 "enable_sorting": True,

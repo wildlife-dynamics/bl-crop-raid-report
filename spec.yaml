@@ -1203,11 +1203,22 @@ workflow:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: "geoparquet"
 
+  - name: Rename Month Name column for elephant acres table
+    id: rename_ele_acre_columns
+    task: map_columns
+    partial:
+      df: ${{ workflow.convert_month_str.return }}
+      drop_columns: []
+      retain_columns: []
+      rename_columns:
+        ts_month_name: "Month Name"
+      raise_if_not_found: false
+
   - name: Draw elephant acres damaged table
     id: ele_acre_table_html
     task: draw_table
     partial:
-      dataframe: ${{ workflow.convert_month_str.return }}
+      dataframe: ${{ workflow.rename_ele_acre_columns.return }}
       columns: null
       table_config:
         enable_sorting: true
@@ -1269,13 +1280,13 @@ workflow:
           "November",
           "December"
       ]
-  
-  - name: convert overall ele to int 
-    id: convert_ele_int 
-    task: ecoscope_workflows_ext_mnc.tasks.transformation.convert_columns_to_int 
-    partial: 
+
+  - name: convert overall ele to int
+    id: convert_ele_int
+    task: ecoscope_workflows_ext_mnc.tasks.transformation.convert_columns_to_int
+    partial:
       df: ${{ workflow.order_overall_ele.return }}
-      columns: ["Damage size"]
+      columns: ["group_size"]
       errors: "coerce"
       fill_value: 0
 
@@ -1296,11 +1307,23 @@ workflow:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: "geoparquet"
 
+  - name: Rename Month Name column for average elephant group size table
+    id: rename_overall_ele_columns
+    task: map_columns
+    partial:
+      df: ${{ workflow.convert_ele_month_str.return }}
+      drop_columns: []
+      retain_columns: []
+      rename_columns:
+        ts_month_name: "Month Name"
+        group_size: "Average Group Size"
+      raise_if_not_found: false
+
   - name: Draw average elephant group size table
     id: overall_ele_table_html
     task: draw_table
     partial:
-      dataframe: ${{ workflow.convert_ele_month_str.return }}
+      dataframe: ${{ workflow.rename_overall_ele_columns.return }}
       columns: null
       table_config:
         enable_sorting: true
