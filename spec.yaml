@@ -21,7 +21,7 @@ requirements:
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-big-life
-    version: "1.0.1.*"
+    version: "1.0.2.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: pydeck
@@ -1189,7 +1189,7 @@ workflow:
   
   - name: Convert ts_month_name to string 
     id: convert_month_str 
-    task: convert_column_values_to_string 
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.cast_columns_to_string
     partial: 
       df: ${{ workflow.ordered_ele_acre.return }}
       columns: ["ts_month_name"]
@@ -1281,7 +1281,7 @@ workflow:
 
   - name: Convert overall ele month name to string 
     id: convert_ele_month_str
-    task: convert_column_values_to_string 
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.cast_columns_to_string
     partial: 
       #df: ${{ workflow.order_overall_ele.return }} 
       df: ${{ workflow.convert_ele_int.return }}
@@ -1370,7 +1370,7 @@ workflow:
 
   - name: Convert ranger response to string 
     id: convert_ranger_str
-    task: convert_column_values_to_string 
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.cast_columns_to_string
     partial: 
       df: ${{ workflow.add_ranger_pct.return }}
       columns: [
@@ -1464,7 +1464,7 @@ workflow:
   
   - name: Convert total acres damaged to string 
     id: convert_total_acres_str
-    task: convert_column_values_to_string
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.cast_columns_to_string
     partial: 
       df: ${{ workflow.add_total_acres_pct.return }}
       columns: [
@@ -1802,7 +1802,7 @@ workflow:
 
   - name: Convert bins to str 
     id: convert_bins_str
-    task: convert_column_values_to_string
+    task: ecoscope_workflows_ext_big_life.tasks.transformation.cast_columns_to_string
     partial:
       df: ${{ workflow.assign_density_bins.return }}
       columns: ["density_bins"]

@@ -69,9 +69,6 @@ from ecoscope.platform.tasks.results import draw_table as draw_table
 from ecoscope.platform.tasks.results import gather_dashboard as gather_dashboard
 from ecoscope.platform.tasks.results import merge_widget_views as merge_widget_views
 from ecoscope.platform.tasks.skip import never as never
-from ecoscope.platform.tasks.transformation import (
-    convert_column_values_to_string as convert_column_values_to_string,
-)
 from ecoscope.platform.tasks.transformation import map_columns as map_columns
 from ecoscope.platform.tasks.transformation import (
     normalize_json_column as normalize_json_column,
@@ -98,6 +95,9 @@ from ecoscope_workflows_ext_big_life.tasks.transformation import (
 )
 from ecoscope_workflows_ext_big_life.tasks.transformation import (
     bin_column as bin_column,
+)
+from ecoscope_workflows_ext_big_life.tasks.transformation import (
+    cast_columns_to_string as cast_columns_to_string,
 )
 from ecoscope_workflows_ext_big_life.tasks.transformation import (
     convert_columns_to_float as convert_columns_to_float,
@@ -2253,7 +2253,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     convert_month_str = (
-        task(convert_column_values_to_string)
+        task(cast_columns_to_string)
         .validate()
         .set_task_instance_id("convert_month_str")
         .handle_errors()
@@ -2454,7 +2454,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     convert_ele_month_str = (
-        task(convert_column_values_to_string)
+        task(cast_columns_to_string)
         .validate()
         .set_task_instance_id("convert_ele_month_str")
         .handle_errors()
@@ -2646,7 +2646,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     convert_ranger_str = (
-        task(convert_column_values_to_string)
+        task(cast_columns_to_string)
         .validate()
         .set_task_instance_id("convert_ranger_str")
         .handle_errors()
@@ -2844,7 +2844,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     convert_total_acres_str = (
-        task(convert_column_values_to_string)
+        task(cast_columns_to_string)
         .validate()
         .set_task_instance_id("convert_total_acres_str")
         .handle_errors()
@@ -3538,7 +3538,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     convert_bins_str = (
-        task(convert_column_values_to_string)
+        task(cast_columns_to_string)
         .validate()
         .set_task_instance_id("convert_bins_str")
         .handle_errors()
