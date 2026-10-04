@@ -1,21 +1,10 @@
-name:  # Title Case, e.g. "My Ecoscope Workflow Template"
-
-# at least one author is required
+name: BL Crop Raid Report
 author:
-  - name: ""
-    organization: ""
-    email: ""
+  - name: Tevin Temu
+    organization: Wildlife Dynamics
+    email: tevin@wildlifedynamics.com
 
-description: # A short description
-
-# todo: add example
-theory: "" # optional
-
-# todo: add example
-output_comment: "" # optional
-
-# optional
-# example
-# citation: 
-#   - Wu, Y. et al. (2025). "Monitoring elephant spatial patterns with Ecoscope workflows."
-citation: [] 
+description: Processes Big Life human-wildlife conflict crop raid events from EarthRanger for the Amboseli ecosystem and produces charts, maps, and summary tables of incidents, crop damage, species responsible, and ranger response, on an interactive dashboard and in a Word report.
+theory: "Crop raid incidents are grouped into 3-hour time-of-day bins and aggregated by month, crop raid location, crop species destroyed, and damage size in acres. Incident density is mapped by counting events in a 2 km grid over the area of interest (EPSG:3857, cells intersecting events only), with counts binned into classes (1-3, 4-6, 7-9, 10-12, 13+). Elephant incidents are summarised as acres damaged and mean group size per month, and ranger response timing is summarised as counts and percentages."
+output_comment: "Outputs a 17-widget dashboard with 7 charts (time-of-day incidents, damage size boxplot by ranger response timing, monthly incidents by location, crop species pie charts by count and by area, and monthly incident and damage stacked bars), 4 maps (crop raid density grid, ranger response timing, species responsible, and a per-month crop destroyed map) over Amboseli land-use zones, ranch boundaries, and the electric fence, and 6 summary tables saved as GeoParquet. Every chart and map is saved as HTML and PNG and assembled into a Word report (overall_report.docx)."
+citation: []
