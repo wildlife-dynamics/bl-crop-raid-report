@@ -85,7 +85,7 @@ from ecoscope.platform.tasks.transformation import sort_values as sort_values
 from ecoscope_workflows_ext_big_life.tasks.reporting import (
     generate_crop_raid_report as generate_crop_raid_report,
 )
-from ecoscope_workflows_ext_big_life.tasks.results import draw_boxplot as draw_boxplot
+from ecoscope_workflows_ext_big_life.tasks.results import draw_boxplot as draw_boxplot_1
 from ecoscope_workflows_ext_big_life.tasks.results import draw_map as draw_map_1
 from ecoscope_workflows_ext_big_life.tasks.transformation import (
     add_pct_str as add_pct_str,
@@ -97,7 +97,7 @@ from ecoscope_workflows_ext_big_life.tasks.transformation import (
     add_suffix_to_columns as add_suffix_to_columns,
 )
 from ecoscope_workflows_ext_big_life.tasks.transformation import (
-    aggregate_by as aggregate_by,
+    aggregate_by as aggregate_by_1,
 )
 from ecoscope_workflows_ext_big_life.tasks.transformation import (
     assign_time_bins as assign_time_bins,
@@ -895,7 +895,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     aggregate_time_bins = (
-        task(aggregate_by)
+        task(aggregate_by_1)
         .validate()
         .set_task_instance_id("aggregate_time_bins")
         .handle_errors()
@@ -1055,7 +1055,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     draw_damage_boxplot = (
-        task(draw_boxplot)
+        task(draw_boxplot_1)
         .validate()
         .set_task_instance_id("draw_damage_boxplot")
         .handle_errors()
@@ -1402,7 +1402,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     aggregate_crop_destroyed = (
-        task(aggregate_by)
+        task(aggregate_by_1)
         .validate()
         .set_task_instance_id("aggregate_crop_destroyed")
         .handle_errors()
@@ -1594,7 +1594,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     aggregate_crop_damage = (
-        task(aggregate_by)
+        task(aggregate_by_1)
         .validate()
         .set_task_instance_id("aggregate_crop_damage")
         .handle_errors()
@@ -2385,7 +2385,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     aggregate_overall_ele = (
-        task(aggregate_by)
+        task(aggregate_by_1)
         .validate()
         .set_task_instance_id("aggregate_overall_ele")
         .handle_errors()
