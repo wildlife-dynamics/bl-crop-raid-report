@@ -14,7 +14,12 @@ from ecoscope.platform.tasks.groupby import split_groups as split_groups
 from ecoscope.platform.tasks.io import get_events as get_events
 from ecoscope.platform.tasks.io import persist_df as persist_df
 from ecoscope.platform.tasks.io import persist_text as persist_text
+from ecoscope.platform.tasks.io import process_events_details as process_events_details
 from ecoscope.platform.tasks.io import set_er_connection as set_er_connection
+from ecoscope.platform.tasks.results import (
+    create_files_single_view as create_files_single_view,
+)
+from ecoscope.platform.tasks.results import create_geojson_layer as create_geojson_layer
 from ecoscope.platform.tasks.results import (
     create_map_widget_single_view as create_map_widget_single_view,
 )
@@ -22,27 +27,41 @@ from ecoscope.platform.tasks.results import (
     create_plot_widget_single_view as create_plot_widget_single_view,
 )
 from ecoscope.platform.tasks.results import (
+    create_scatterplot_layer as create_scatterplot_layer,
+)
+from ecoscope.platform.tasks.results import (
     create_table_widget_single_view as create_table_widget_single_view,
 )
 from ecoscope.platform.tasks.results import draw_table as draw_table
 from ecoscope.platform.tasks.results import gather_dashboard as gather_dashboard
 from ecoscope.platform.tasks.results import merge_widget_views as merge_widget_views
+from ecoscope.platform.tasks.results import set_base_maps as set_base_maps
 from ecoscope.platform.tasks.skip import (
     any_dependency_skipped as any_dependency_skipped,
 )
 from ecoscope.platform.tasks.skip import any_is_empty_df as any_is_empty_df
 from ecoscope.platform.tasks.skip import never as never
 from ecoscope.platform.tasks.transformation import apply_color_map as apply_color_map
+from ecoscope.platform.tasks.transformation import (
+    decompose_datetime as decompose_datetime,
+)
+from ecoscope.platform.tasks.transformation import (
+    drop_column_prefix as drop_column_prefix,
+)
 from ecoscope.platform.tasks.transformation import filter_df as filter_df
 from ecoscope.platform.tasks.transformation import map_columns as map_columns
 from ecoscope.platform.tasks.transformation import (
     normalize_json_column as normalize_json_column,
 )
 from ecoscope.platform.tasks.transformation import sort_values as sort_values
+from ecoscope_workflows_ext_big_life.tasks.io import (
+    load_big_life_file as load_big_life_file,
+)
 from ecoscope_workflows_ext_big_life.tasks.reporting import (
     generate_crop_raid_report as generate_crop_raid_report,
 )
 from ecoscope_workflows_ext_big_life.tasks.results import draw_boxplot as draw_boxplot
+from ecoscope_workflows_ext_big_life.tasks.results import draw_map as draw_map_1
 from ecoscope_workflows_ext_big_life.tasks.transformation import (
     add_pct_str as add_pct_str,
 )
@@ -78,27 +97,8 @@ from ecoscope_workflows_ext_big_life.tasks.transformation import (
 )
 from ecoscope_workflows_ext_custom.tasks.io import html_to_png as html_to_png
 from ecoscope_workflows_ext_custom.tasks.io import load_df as load_df
-from ecoscope_workflows_ext_custom.tasks.io import (
-    process_events_details as process_events_details_1,
-)
-from ecoscope_workflows_ext_custom.tasks.results import (
-    create_geojson_layer as create_geojson_layer_1,
-)
-from ecoscope_workflows_ext_custom.tasks.results import (
-    create_scatterplot_layer as create_scatterplot_layer_1,
-)
-from ecoscope_workflows_ext_custom.tasks.results import draw_map as draw_map_1
-from ecoscope_workflows_ext_custom.tasks.results import (
-    set_base_maps_pydeck as set_base_maps_pydeck,
-)
 from ecoscope_workflows_ext_custom.tasks.spatial_ops import (
     reproject_gdf as reproject_gdf,
-)
-from ecoscope_workflows_ext_custom.tasks.transformation import (
-    decompose_datetime as decompose_datetime,
-)
-from ecoscope_workflows_ext_custom.tasks.transformation import (
-    drop_column_prefix as drop_column_prefix_1,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     filter_row_values as filter_row_values,
@@ -113,9 +113,6 @@ from ecoscope_workflows_ext_mnc.tasks.transformation import (
     fill_missing_values as fill_missing_values,
 )
 from ecoscope_workflows_ext_ste.tasks.filter import filter_rows as filter_rows
-from ecoscope_workflows_ext_ste.tasks.io import (
-    fetch_and_persist_file as fetch_and_persist_file,
-)
 from ecoscope_workflows_ext_ste.tasks.spatial_operations import (
     combine_deckgl_map_layers as combine_deckgl_map_layers,
 )
@@ -218,7 +215,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     configure_base_maps = (
-        task(set_base_maps_pydeck)
+        task(set_base_maps)
         .validate()
         .set_task_instance_id("configure_base_maps")
         .handle_errors()
@@ -249,7 +246,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     ambo_ranch_layers = (
-        task(fetch_and_persist_file)
+        task(load_big_life_file)
         .validate()
         .set_task_instance_id("ambo_ranch_layers")
         .handle_errors()
@@ -262,18 +259,14 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            url="https://www.dropbox.com/scl/fi/wrcp3pnnxqyrclzmbtt1r/amboseli_ranch_conservancies_layers.gpkg?rlkey=jfbqj1b1nwhijxbsy7b2v1d29&st=d7rbqdfe&dl=0",
-            output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            overwrite_existing=False,
-            retries=3,
-            unzip=False,
+            filename="amboseli_ranch_conservancies_layers.gpkg",
             **(params.get("ambo_ranch_layers") or {}),
         )
         .call()
     )
 
     ambo_bound_fence = (
-        task(fetch_and_persist_file)
+        task(load_big_life_file)
         .validate()
         .set_task_instance_id("ambo_bound_fence")
         .handle_errors()
@@ -286,18 +279,14 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            url="https://www.dropbox.com/scl/fi/k6dgrmxmxeb3fe6glihwa/amboseli_group_ranch_boundaries_x_electric_fence.gpkg?rlkey=limtzffe88lr0iof5kf3b6uoy&st=rreho3tq&dl=0",
-            output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            overwrite_existing=False,
-            retries=3,
-            unzip=False,
+            filename="amboseli_group_ranch_boundaries_x_electric_fence.gpkg",
             **(params.get("ambo_bound_fence") or {}),
         )
         .call()
     )
 
     ambo_conservancies = (
-        task(fetch_and_persist_file)
+        task(load_big_life_file)
         .validate()
         .set_task_instance_id("ambo_conservancies")
         .handle_errors()
@@ -310,11 +299,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            url="https://www.dropbox.com/scl/fi/blo1smf49buhwx24y4z60/amboseli_group_ranch_boundaries.gpkg?rlkey=w86emavj8ug7zab73ifbzg6jv&st=v8uptlb0&dl=0",
-            output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            overwrite_existing=False,
-            retries=3,
-            unzip=False,
+            filename="amboseli_group_ranch_boundaries.gpkg",
             **(params.get("ambo_conservancies") or {}),
         )
         .call()
@@ -479,7 +464,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     create_land_layer = (
-        task(create_geojson_layer_1)
+        task(create_geojson_layer)
         .validate()
         .set_task_instance_id("create_land_layer")
         .handle_errors()
@@ -492,6 +477,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            tooltip_columns=None,
             geodataframe=apply_ambo_color,
             data_url=None,
             layer_style={
@@ -566,7 +552,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     create_bound_layer = (
-        task(create_geojson_layer_1)
+        task(create_geojson_layer)
         .validate()
         .set_task_instance_id("create_bound_layer")
         .handle_errors()
@@ -579,6 +565,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            tooltip_columns=None,
             geodataframe=filter_ambo_boundaries,
             data_url=None,
             layer_style={
@@ -598,7 +585,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     create_fence_layer = (
-        task(create_geojson_layer_1)
+        task(create_geojson_layer)
         .validate()
         .set_task_instance_id("create_fence_layer")
         .handle_errors()
@@ -611,6 +598,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            tooltip_columns=None,
             geodataframe=filter_ambo_fence,
             data_url=None,
             layer_style={
@@ -643,6 +631,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            event_states=None,
             client=er_client_name,
             time_range=time_range,
             event_columns=[
@@ -670,7 +659,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     process_crop_details = (
-        task(process_events_details_1)
+        task(process_events_details)
         .validate()
         .set_task_instance_id("process_crop_details")
         .handle_errors()
@@ -716,7 +705,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     drop_crop_prefix = (
-        task(drop_column_prefix_1)
+        task(drop_column_prefix)
         .validate()
         .set_task_instance_id("drop_crop_prefix")
         .handle_errors()
@@ -751,6 +740,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            duplicate_strategy="suffix",
             df=drop_crop_prefix,
             drop_columns=[
                 "event_category",
@@ -2273,7 +2263,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             df=convert_month_str,
             filename="total_land_size_damaged_by_elephants",
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="geoparquet",
+            filetype="parquet",
             **(params.get("persist_ele_acre_df") or {}),
         )
         .call()
@@ -2293,6 +2283,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            duplicate_strategy="suffix",
             df=convert_month_str,
             drop_columns=[],
             retain_columns=[],
@@ -2498,7 +2489,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             df=convert_ele_month_str,
             filename="average_elephant_group_size_over_time",
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="geoparquet",
+            filetype="parquet",
             **(params.get("persist_overall_ele") or {}),
         )
         .call()
@@ -2518,6 +2509,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            duplicate_strategy="suffix",
             df=convert_ele_month_str,
             drop_columns=[],
             retain_columns=[],
@@ -2723,7 +2715,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             df=convert_ranger_str,
             filename="timing_of_ranger_response",
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="geoparquet",
+            filetype="parquet",
             **(params.get("persist_ranger_df") or {}),
         )
         .call()
@@ -2921,7 +2913,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             df=convert_total_acres_str,
             filename="total_area_damaged_by_crop_raid_location",
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="geoparquet",
+            filetype="parquet",
             **(params.get("persist_total_df") or {}),
         )
         .call()
@@ -3149,7 +3141,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             df=merge_species_damage_inc,
             filename="total_land_damage_by_species_responsible",
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="geoparquet",
+            filetype="parquet",
             **(params.get("persist_comb_species") or {}),
         )
         .call()
@@ -3377,7 +3369,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             df=merge_crops_damage_inc,
             filename="total_crops_damaged_by_species",
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="geoparquet",
+            filetype="parquet",
             **(params.get("persist_comb_crops") or {}),
         )
         .call()
@@ -3616,7 +3608,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     generate_density_layers = (
-        task(create_geojson_layer_1)
+        task(create_geojson_layer)
         .validate()
         .set_task_instance_id("generate_density_layers")
         .handle_errors()
@@ -3629,6 +3621,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            tooltip_columns=None,
             data_url=None,
             layer_style={
                 "filled": True,
@@ -3871,7 +3864,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     generate_response_layer = (
-        task(create_scatterplot_layer_1)
+        task(create_scatterplot_layer)
         .validate()
         .set_task_instance_id("generate_response_layer")
         .handle_errors()
@@ -3884,6 +3877,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            tooltip_columns=None,
             data_url=None,
             layer_style={
                 "get_fill_color": "timing_of_response_colors_rgba",
@@ -4079,7 +4073,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     generate_species_layer = (
-        task(create_scatterplot_layer_1)
+        task(create_scatterplot_layer)
         .validate()
         .set_task_instance_id("generate_species_layer")
         .handle_errors()
@@ -4092,6 +4086,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            tooltip_columns=None,
             data_url=None,
             layer_style={
                 "get_fill_color": "species_responsible_colors_rgba",
@@ -4339,7 +4334,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     generate_crop_layer = (
-        task(create_scatterplot_layer_1)
+        task(create_scatterplot_layer)
         .validate()
         .set_task_instance_id("generate_crop_layer")
         .handle_errors()
@@ -4352,6 +4347,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            tooltip_columns=None,
             data_url=None,
             layer_style={
                 "get_fill_color": "crop_destroyed_colors_rgba",
@@ -4602,7 +4598,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     download_big_life_template = (
-        task(fetch_and_persist_file)
+        task(load_big_life_file)
         .validate()
         .set_task_instance_id("download_big_life_template")
         .handle_errors()
@@ -4615,11 +4611,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            url="https://www.dropbox.com/scl/fi/gu3hnf1zh8lvyzbc6qrye/crop_raid_report_template.docx?rlkey=x0r1bii8zu9y8zhj5a5kyfry7&st=yczc9o23&dl=0",
-            output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            overwrite_existing=False,
-            retries=3,
-            unzip=False,
+            filename="crop_raid_report_template.docx",
             **(params.get("download_big_life_template") or {}),
         )
         .call()
@@ -4633,19 +4625,48 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .with_tracing()
         .skipif(
             conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
+                never,
             ],
             unpack_depth=1,
         )
         .partial(
             template_path=download_big_life_template,
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            input_files=[
+                persist_ele_acre_df,
+                persist_overall_ele,
+                persist_ranger_df,
+                persist_total_df,
+                persist_comb_species,
+                persist_comb_crops,
+                convert_density_map_png,
+                convert_response_map_png,
+                convert_species_map_png,
+                convert_crop_map_png,
+                convert_chart_html_png,
+            ],
             filename="overall_report.docx",
             time_period=time_range,
             generated_by="Ecoscope",
             **(params.get("generate_report") or {}),
         )
+        .call()
+    )
+
+    report_files = (
+        task(create_files_single_view)
+        .validate()
+        .set_task_instance_id("report_files")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(files=[generate_report], **(params.get("report_files") or {}))
         .call()
     )
 
@@ -4685,6 +4706,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             ],
             time_range=time_range,
             groupers=groupers,
+            files=report_files,
             **(params.get("crop_raid_dashboard_report") or {}),
         )
         .call()
