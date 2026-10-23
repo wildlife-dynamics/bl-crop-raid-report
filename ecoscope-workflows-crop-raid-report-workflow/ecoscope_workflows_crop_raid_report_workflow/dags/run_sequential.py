@@ -60,7 +60,7 @@ from ecoscope_workflows_ext_big_life.tasks.io import (
 from ecoscope_workflows_ext_big_life.tasks.reporting import (
     generate_crop_raid_report as generate_crop_raid_report,
 )
-from ecoscope_workflows_ext_big_life.tasks.results import draw_boxplot as draw_boxplot_1
+from ecoscope_workflows_ext_big_life.tasks.results import draw_boxplot as draw_boxplot
 from ecoscope_workflows_ext_big_life.tasks.results import draw_map as draw_map_1
 from ecoscope_workflows_ext_big_life.tasks.transformation import (
     add_pct_str as add_pct_str,
@@ -1036,7 +1036,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     draw_damage_boxplot = (
-        task(draw_boxplot_1)
+        task(draw_boxplot)
         .validate()
         .set_task_instance_id("draw_damage_boxplot")
         .handle_errors()
