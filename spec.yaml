@@ -76,7 +76,7 @@ requirements:
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-wwf-virunga
-    version: "0.0.0rc9.*"
+    version: "1.0.1"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-big-life
@@ -107,6 +107,8 @@ workflow:
   - name: Time Range
     id: time_range
     task: set_time_range
+    partial:
+      time_format: "%d %b %Y %H:%M:%S"
 
   # Define groupers 
   - name: Set Data Grouping
@@ -793,8 +795,9 @@ workflow:
 
   - name: Draw pie chart of crop destroyed
     id: draw_crop_destroyed_pie
-    task: ecoscope_workflows_ext_wwf_virunga.tasks.plot._plot.draw_pie_chart
+    task: ecoscope_workflows_ext_wwf_virunga.tasks.plot.draw_pie_chart
     partial:
+      donut_style: null
       dataframe: ${{ workflow.crop_destroyed_agg_rgba.return }}
       label_column: "Main crop destroyed"
       value_column: "Count"
@@ -898,8 +901,9 @@ workflow:
 
   - name: Draw pie chart of crop destroyed by damage size
     id: draw_crop_destroyed_by_size_pie
-    task: ecoscope_workflows_ext_wwf_virunga.tasks.plot._plot.draw_pie_chart
+    task: ecoscope_workflows_ext_wwf_virunga.tasks.plot.draw_pie_chart
     partial: 
+      donut_style: null
       dataframe: ${{ workflow.aoo_crop_destroyed_rgba.return }}
       label_column: "Main crop destroyed"
       value_column: "Total Damage Size"

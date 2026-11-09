@@ -149,7 +149,7 @@ from ecoscope_workflows_ext_ste.tasks.transformation import (
 from ecoscope_workflows_ext_wwf_virunga.tasks.plot import (
     draw_bar_chart as draw_bar_chart_1,
 )
-from ecoscope_workflows_ext_wwf_virunga.tasks.plot._plot import (
+from ecoscope_workflows_ext_wwf_virunga.tasks.plot import (
     draw_pie_chart as draw_pie_chart_1,
 )
 from ecoscope_workflows_ext_wwf_virunga.tasks.transformation import (
@@ -193,7 +193,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             ],
             unpack_depth=1,
         )
-        .partial(**(params.get("time_range") or {}))
+        .partial(time_format="%d %b %Y %H:%M:%S", **(params.get("time_range") or {}))
         .call()
     )
 
@@ -1516,6 +1516,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            donut_style=None,
             dataframe=crop_destroyed_agg_rgba,
             label_column="Main crop destroyed",
             value_column="Count",
@@ -1708,6 +1709,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            donut_style=None,
             dataframe=aoo_crop_destroyed_rgba,
             label_column="Main crop destroyed",
             value_column="Total Damage Size",
