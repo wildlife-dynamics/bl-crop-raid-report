@@ -34,7 +34,6 @@ from ecoscope.platform.tasks.results import (
 )
 from ecoscope.platform.tasks.results import draw_table as draw_table
 from ecoscope.platform.tasks.results import gather_dashboard as gather_dashboard
-from ecoscope.platform.tasks.results import merge_widget_views as merge_widget_views
 from ecoscope.platform.tasks.results import set_base_maps as set_base_maps
 from ecoscope.platform.tasks.skip import (
     any_dependency_skipped as any_dependency_skipped,
@@ -4516,25 +4515,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .map(argnames=["view", "data"], argvalues=persist_crop_map)
     )
 
-    widget_crops_map_grouped = (
-        task(merge_widget_views)
-        .validate()
-        .set_task_instance_id("widget_crops_map_grouped")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            widgets=widget_crops_map, **(params.get("widget_crops_map_grouped") or {})
-        )
-        .call()
-    )
-
     convert_crop_map_png = (
         task(html_to_png)
         .validate()
@@ -4691,7 +4671,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 widget_density_map,
                 widget_response_map,
                 widget_species_map,
-                widget_crops_map_grouped,
                 widget_time_bin_chart,
                 widget_damage_boxplot,
                 widget_month_raid_locs,
@@ -4707,7 +4686,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 widget_crops_damage_table,
             ],
             time_range=time_range,
-            groupers=groupers,
+            groupers=None,
             files=report_files,
             **(params.get("crop_raid_dashboard_report") or {}),
         )

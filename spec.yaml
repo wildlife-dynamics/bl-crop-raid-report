@@ -2409,12 +2409,6 @@ workflow:
       argnames: [view, data]
       argvalues: ${{ workflow.persist_crop_map.return }}
 
-  - name: Merge per-month crop destroyed map widgets
-    id: widget_crops_map_grouped
-    task: merge_widget_views
-    partial:
-      widgets: ${{ workflow.widget_crops_map.return }}
-
   - name: Convert crop event map to png
     id: convert_crop_map_png
     task: ecoscope_workflows_ext_custom.tasks.io.html_to_png
@@ -2510,7 +2504,6 @@ workflow:
         - ${{ workflow.widget_density_map.return }}
         - ${{ workflow.widget_response_map.return }}
         - ${{ workflow.widget_species_map.return }}
-        - ${{ workflow.widget_crops_map_grouped.return }}
         - ${{ workflow.widget_time_bin_chart.return }}
         - ${{ workflow.widget_damage_boxplot.return }}
         - ${{ workflow.widget_month_raid_locs.return }}
@@ -2525,5 +2518,5 @@ workflow:
         - ${{ workflow.widget_species_damage_table.return }}
         - ${{ workflow.widget_crops_damage_table.return }}
       time_range: ${{ workflow.time_range.return }}
-      groupers: ${{ workflow.groupers.return }}
+      groupers: null
       files: ${{ workflow.report_files.return }}
