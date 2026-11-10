@@ -69,7 +69,6 @@ from ecoscope.platform.tasks.results import (
 )
 from ecoscope.platform.tasks.results import draw_table as draw_table
 from ecoscope.platform.tasks.results import gather_dashboard as gather_dashboard
-from ecoscope.platform.tasks.results import merge_widget_views as merge_widget_views
 from ecoscope.platform.tasks.skip import never as never
 from ecoscope.platform.tasks.transformation import (
     decompose_datetime as decompose_datetime,
@@ -85,7 +84,7 @@ from ecoscope.platform.tasks.transformation import sort_values as sort_values
 from ecoscope_workflows_ext_big_life.tasks.reporting import (
     generate_crop_raid_report as generate_crop_raid_report,
 )
-from ecoscope_workflows_ext_big_life.tasks.results import draw_boxplot as draw_boxplot
+from ecoscope_workflows_ext_big_life.tasks.results import draw_boxplot as draw_boxplot_1
 from ecoscope_workflows_ext_big_life.tasks.results import draw_map as draw_map_1
 from ecoscope_workflows_ext_big_life.tasks.transformation import (
     add_pct_str as add_pct_str,
@@ -97,7 +96,7 @@ from ecoscope_workflows_ext_big_life.tasks.transformation import (
     add_suffix_to_columns as add_suffix_to_columns,
 )
 from ecoscope_workflows_ext_big_life.tasks.transformation import (
-    aggregate_by as aggregate_by,
+    aggregate_by as aggregate_by_1,
 )
 from ecoscope_workflows_ext_big_life.tasks.transformation import (
     assign_time_bins as assign_time_bins,
@@ -149,7 +148,7 @@ from ecoscope_workflows_ext_ste.tasks.transformation import (
 from ecoscope_workflows_ext_wwf_virunga.tasks.plot import (
     draw_bar_chart as draw_bar_chart_1,
 )
-from ecoscope_workflows_ext_wwf_virunga.tasks.plot._plot import (
+from ecoscope_workflows_ext_wwf_virunga.tasks.plot import (
     draw_pie_chart as draw_pie_chart_1,
 )
 from ecoscope_workflows_ext_wwf_virunga.tasks.transformation import (
@@ -193,7 +192,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             ],
             unpack_depth=1,
         )
-        .partial(**(params.get("time_range") or {}))
+        .partial(time_format="%d %b %Y %H:%M:%S", **(params.get("time_range") or {}))
         .call()
     )
 
@@ -895,7 +894,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     aggregate_time_bins = (
-        task(aggregate_by)
+        task(aggregate_by_1)
         .validate()
         .set_task_instance_id("aggregate_time_bins")
         .handle_errors()
@@ -1055,7 +1054,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     draw_damage_boxplot = (
-        task(draw_boxplot)
+        task(draw_boxplot_1)
         .validate()
         .set_task_instance_id("draw_damage_boxplot")
         .handle_errors()
@@ -1402,7 +1401,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     aggregate_crop_destroyed = (
-        task(aggregate_by)
+        task(aggregate_by_1)
         .validate()
         .set_task_instance_id("aggregate_crop_destroyed")
         .handle_errors()
@@ -1516,6 +1515,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            donut_style=None,
             dataframe=crop_destroyed_agg_rgba,
             label_column="Main crop destroyed",
             value_column="Count",
@@ -1594,7 +1594,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     aggregate_crop_damage = (
-        task(aggregate_by)
+        task(aggregate_by_1)
         .validate()
         .set_task_instance_id("aggregate_crop_damage")
         .handle_errors()
@@ -1708,6 +1708,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            donut_style=None,
             dataframe=aoo_crop_destroyed_rgba,
             label_column="Main crop destroyed",
             value_column="Total Damage Size",
@@ -2385,7 +2386,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     aggregate_overall_ele = (
-        task(aggregate_by)
+        task(aggregate_by_1)
         .validate()
         .set_task_instance_id("aggregate_overall_ele")
         .handle_errors()
@@ -4533,25 +4534,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .map(argnames=["view", "data"], argvalues=persist_crop_map)
     )
 
-    widget_crops_map_grouped = (
-        task(merge_widget_views)
-        .validate()
-        .set_task_instance_id("widget_crops_map_grouped")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            widgets=widget_crops_map, **(params.get("widget_crops_map_grouped") or {})
-        )
-        .call()
-    )
-
     convert_crop_map_png = (
         task(html_to_png)
         .validate()
@@ -4708,7 +4690,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 widget_density_map,
                 widget_response_map,
                 widget_species_map,
-                widget_crops_map_grouped,
                 widget_time_bin_chart,
                 widget_damage_boxplot,
                 widget_month_raid_locs,
@@ -4724,7 +4705,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 widget_crops_damage_table,
             ],
             time_range=time_range,
-            groupers=groupers,
+            groupers=None,
             files=report_files,
             **(params.get("crop_raid_dashboard_report") or {}),
         )
