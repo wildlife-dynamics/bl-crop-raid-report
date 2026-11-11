@@ -4705,7 +4705,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 widget_crops_damage_table,
             ],
             time_range=time_range,
-            groupers=None,
+            groupers=groupers,
             files=report_files,
             **(params.get("crop_raid_dashboard_report") or {}),
         )
